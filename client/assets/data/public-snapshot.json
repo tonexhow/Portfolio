@@ -1,0 +1,356 @@
+{
+  "schema_version": 1,
+  "revision": 0,
+  "updated_at": "2026-09-30T00:00:00Z",
+  "information": {
+    "portfolio": {
+      "capstone_count": 2,
+      "earnings": {
+        "currency": "PHP",
+        "min": 50,
+        "max": 30000,
+        "label": "Project range"
+      },
+      "projects": {
+        "count": 23,
+        "intro": "A selected view of systems from my workspace, from small focused projects to larger builds with broader workflows and integrations.",
+        "visibility_note": "Some work is not shown publicly when confidentiality, academic ownership, licensing, copyright, or other intellectual property restrictions apply."
+      },
+      "about_templates": [
+        "I build and support {project_count} projects across small focused work and larger systems with broader workflows, interfaces, and integrations.",
+        "I have also worked on {capstone_count} capstone systems, while keeping project identities or implementation details private when confidentiality, academic ownership, licensing, copyright, or other intellectual property restrictions apply.",
+        "For project-based work, my current range is {project_range}, depending on scope, complexity, integrations, design requirements, and development effort."
+      ],
+      "tab_messages": [
+        "Your next idea can start here \ud83d\udc4b",
+        "Still thinking about that project?",
+        "The build desk is still open \u2726",
+        "Come back when the idea clicks.",
+        "A useful system starts with one idea.",
+        "JPano \u00b7 ready when you are."
+      ]
+    },
+    "name": {
+      "full": "Jhon Anthony Pano",
+      "first": "Jhon Anthony",
+      "last": "Pano",
+      "nickname": [
+        "Tony",
+        "Jhon"
+      ],
+      "highlighted_html": "Jhon An<span class=\"name-accent\">t</span>h<span class=\"name-accent\">ony</span> Pano"
+    },
+    "headline": "Bachelor of Science in Information Technology Student \u00b7 Freelancing / Self-Employed",
+    "intro": "I create web experiences, backend services, databases, and connected systems with an emphasis on clear interfaces, dependable logic, and practical results.",
+    "location": "Buenavista, Bohol, Philippines",
+    "availability": "Open to project ideas and collaborations",
+    "greeting": {
+      "morning": "Good morning",
+      "afternoon": "Good afternoon",
+      "evening": "Good evening",
+      "messages": [
+        "is here, ready to build your project and turn your ideas into something useful.",
+        "is here, ready to shape your next idea into a thoughtful digital experience.",
+        "is here, ready to design, build, and improve what you have in mind.",
+        "is here, ready to turn a clear concept into a working system.",
+        "is here, ready to create something reliable and suited to the problem.",
+        "is here, ready when your idea needs a clean interface, solid logic, or both.",
+        "is here, building useful systems one project at a time.",
+        "is here, ready to help move your idea from concept to working product."
+      ]
+    },
+    "contact": {
+      "email": "jacpano@gmail.com",
+      "links": {
+        "github": "https://github.com/Dev-JPano",
+        "linkedin": "https://www.linkedin.com/in/jhon-anthony-pano-830242335/",
+        "facebook": "https://www.facebook.com/61594911020215",
+        "x": "https://twitter.com/Dev_JPano"
+      },
+      "mobile": [
+        "(+63) 0993 885 9567",
+        "(+63) 0951 460 5103"
+      ]
+    },
+    "education": {
+      "tertiary": {
+        "school_name": "Buenavista Community College",
+        "school_address": "Cangawa, Buenavista, Bohol, Philippines",
+        "year_graduated": "current",
+        "course": "Bachelor of Science in Information Technology"
+      },
+      "senior_high_school": {
+        "school_name": "Lagtang National Senior High School",
+        "school_address": "Lagtang, Talisay City, Cebu, Philippines",
+        "year_graduated": "2020",
+        "strand": "EPAS (Electronic Products Assembly and Servicing)"
+      },
+      "junior_high_school": {
+        "school_name": "Lagtang National (Night) High School",
+        "school_address": "Lagtang, Talisay City, Cebu, Philippines",
+        "year_graduated": "2018"
+      },
+      "elementary": {
+        "school_name": "Lagtang Elementary School",
+        "school_address": "Lagtang, Talisay City, Cebu, Philippines",
+        "year_graduated": "2014"
+      }
+    },
+    "experience": {
+      "current": {
+        "company_name": "N/A",
+        "position": "Freelancing / Self-Employed",
+        "start_date": "2022",
+        "end_date": "current",
+        "responsibilities": [
+          "School projects, capstone, assignments, and other school-related tasks.",
+          "Freelancing work such as web development, graphic design, and other IT-related work."
+        ]
+      },
+      "previous": [
+        {
+          "company_name": "CNS Int'l. Inc.",
+          "position": "Warehouse Crew & Delivery Staff",
+          "start_date": "2021",
+          "end_date": "2022",
+          "responsibilities": [
+            "Assisted in receiving, inspecting, and organizing incoming shipments of goods and materials.",
+            "Navigation, transaction, and delivery of goods to various locations using company vehicles.",
+            "Assisted customers in the warehouse with choosing items and product information.",
+            "Arranged products on shelves and in storage areas for efficient access and space use."
+          ]
+        },
+        {
+          "company_name": "UltimateFix",
+          "position": "Assistant Technician (OJT)",
+          "start_date": "2020",
+          "end_date": "2020",
+          "responsibilities": [
+            "Observed and assisted senior technicians in diagnosing and repairing smartphones, tablets, and laptops.",
+            "Used diagnostic tools and software to help identify hardware and software issues.",
+            "Performed supervised tasks such as device cleaning, screen replacement, and software updates.",
+            "Maintained an organized work area and properly stored tools and equipment."
+          ]
+        },
+        {
+          "company_name": "Garces Royal Garden - Catering Services",
+          "position": "(On Call) Head/Waiter",
+          "start_date": "2018",
+          "end_date": "2020",
+          "responsibilities": [
+            "Led a service team during events and helped maintain professional customer service.",
+            "Coordinated timely food and beverage service.",
+            "Handled customer concerns and supported event operations.",
+            "Helped design venue layouts and table settings for events."
+          ]
+        }
+      ]
+    },
+    "skills": {
+      "it": {
+        "frontend": [
+          "HTML5",
+          "CSS3",
+          "JavaScript",
+          "Bootstrap",
+          "Tailwind CSS",
+          "React.js",
+          "Bulma",
+          "MUI",
+          "Shadcn",
+          "NextJS"
+        ],
+        "backend": [
+          "Python",
+          "NodeJS",
+          "Go"
+        ],
+        "database": [
+          "Supabase",
+          "MySQL",
+          "Firebase",
+          "SQLite"
+        ],
+        "hosting": [
+          "Cloudflare",
+          "Vercel",
+          "GitHub",
+          "OnRender"
+        ],
+        "mobile": [
+          "Flutter",
+          "React Native",
+          "Kotlin"
+        ],
+        "desktop": [
+          "JavaFX",
+          "Python Tkinter",
+          ".NET"
+        ],
+        "console": [
+          "Java",
+          "C",
+          "C++",
+          "C#"
+        ],
+        "iot": [
+          "Raspberry Pi",
+          "Arduino",
+          "ESP32"
+        ]
+      },
+      "soft": [
+        "Problem Solving",
+        "Critical Thinking",
+        "Communication",
+        "Teamwork",
+        "Adaptability",
+        "Time Management",
+        "Creativity",
+        "Customer Service",
+        "Front Desk Operations"
+      ]
+    },
+    "role": "Full Stack Developer",
+    "profile_images": [
+      "/assets/profiles/1.png",
+      "/assets/profiles/2.png",
+      "/assets/profiles/3.png"
+    ]
+  },
+  "profiles": {
+    "items": [
+      "/assets/profiles/1.png",
+      "/assets/profiles/2.png",
+      "/assets/profiles/3.png"
+    ],
+    "rotation_seconds": 60
+  },
+  "projects": [
+    {
+      "key": "jpano-portfolio",
+      "name": "JPano Portfolio",
+      "description": "Personal developer portfolio for Jhon Anthony Pano, presenting selected projects, experience, education, skills, feedback, and contact information.",
+      "url": "https://jpano.dev",
+      "source_url": "",
+      "type": "Portfolio",
+      "stack": [
+        "HTML",
+        "CSS",
+        "JavaScript",
+        "Go",
+        "PostgreSQL / Supabase"
+      ],
+      "icon": "/assets/icons/logo-tab.svg",
+      "images": [
+        "/assets/projects/portfolio-preview.webp"
+      ],
+      "visible": true,
+      "display_order": 1,
+      "status": "unknown",
+      "checked_at": null,
+      "source": "database",
+      "editable": true
+    }
+  ],
+  "certificates": [
+    {
+      "id": 12,
+      "date": "2026",
+      "provider": "Buenavista Community College",
+      "pinned": false,
+      "image_url": "/assets/published/certificate-12.png",
+      "download_url": "/assets/published/certificate-12.png"
+    },
+    {
+      "id": 7,
+      "date": "2026",
+      "provider": "Alison",
+      "pinned": false,
+      "image_url": "/assets/published/certificate-7.png",
+      "download_url": "/assets/published/certificate-7.png"
+    },
+    {
+      "id": 6,
+      "date": "2026",
+      "provider": "Great Learning",
+      "pinned": false,
+      "image_url": "/assets/published/certificate-6.png",
+      "download_url": "/assets/published/certificate-6.png"
+    },
+    {
+      "id": 5,
+      "date": "2026",
+      "provider": "Great Learning",
+      "pinned": false,
+      "image_url": "/assets/published/certificate-5.png",
+      "download_url": "/assets/published/certificate-5.png"
+    },
+    {
+      "id": 3,
+      "date": "2026",
+      "provider": "Cisco",
+      "pinned": false,
+      "image_url": "/assets/published/certificate-3.png",
+      "download_url": "/assets/published/certificate-3.png"
+    },
+    {
+      "id": 8,
+      "date": "2025",
+      "provider": "BCC - CodeHex Organization",
+      "pinned": false,
+      "image_url": "/assets/published/certificate-8.png",
+      "download_url": "/assets/published/certificate-8.png"
+    },
+    {
+      "id": 4,
+      "date": "2025",
+      "provider": "Cisco",
+      "pinned": false,
+      "image_url": "/assets/published/certificate-4.png",
+      "download_url": "/assets/published/certificate-4.png"
+    },
+    {
+      "id": 2,
+      "date": "2025",
+      "provider": "ScholarHat",
+      "pinned": false,
+      "image_url": "/assets/published/certificate-2.png",
+      "download_url": "/assets/published/certificate-2.png"
+    },
+    {
+      "id": 13,
+      "date": "2020",
+      "provider": "UltimateFix",
+      "pinned": false,
+      "image_url": "/assets/published/certificate-13.png",
+      "download_url": "/assets/published/certificate-13.png"
+    },
+    {
+      "id": 11,
+      "date": "2019",
+      "provider": "Lagtang National High School",
+      "pinned": false,
+      "image_url": "/assets/published/certificate-11.png",
+      "download_url": "/assets/published/certificate-11.png"
+    },
+    {
+      "id": 10,
+      "date": "2018",
+      "provider": "Lagtang Night High School",
+      "pinned": false,
+      "image_url": "/assets/published/certificate-10.png",
+      "download_url": "/assets/published/certificate-10.png"
+    },
+    {
+      "id": 9,
+      "date": "2018",
+      "provider": "Lagtang Night High School",
+      "pinned": false,
+      "image_url": "/assets/published/certificate-9.png",
+      "download_url": "/assets/published/certificate-9.png"
+    }
+  ],
+  "feedback": [],
+  "career_profiles": []
+}

@@ -1,0 +1,25 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "buildCommand": "node build.mjs",
+  "outputDirectory": "dist",
+  "rewrites": [
+    { "source": "/admin", "destination": "/admin.html" },
+    { "source": "/access", "destination": "/access.html" },
+    { "source": "/access/verify", "destination": "/access-verify.html" },
+    { "source": "/access/grant", "destination": "/access-grant.html" },
+    { "source": "/privacy", "destination": "/privacy.html" },
+    { "source": "/terms", "destination": "/terms.html" },
+    { "source": "/data-deletion", "destination": "/data-deletion.html" }
+  ],
+  "headers": [
+    { "source": "/(.*)", "headers": [
+      { "key": "X-Content-Type-Options", "value": "nosniff" },
+      { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+      { "key": "X-Frame-Options", "value": "DENY" },
+      { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=()" }
+    ]},
+    { "source": "/config.js", "headers": [{ "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }] },
+    { "source": "/assets/data/public-snapshot.json", "headers": [{ "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }] },
+    { "source": "/service-worker.js", "headers": [{ "key": "Cache-Control", "value": "no-store" }] }
+  ]
+}
