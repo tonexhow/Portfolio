@@ -1,4 +1,4 @@
-// Dependency-free static build. Only PUBLIC_* variables are ever emitted.
+// Dependency-free static build. Only the public API origin is emitted; secrets are never written to client output.
 import { cp, mkdir, readFile, writeFile, rm } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -7,20 +7,20 @@ const root = dirname(fileURLToPath(import.meta.url));
 const out = join(root, "dist");
 function origin(value) {
   const url = new URL(value);
-  if (!["http:","https:"].includes(url.protocol) || url.username || url.password || url.search || url.hash || url.pathname !== "/") throw new Error("PUBLIC_API_BASE_URL must be a complete HTTP(S) origin without a path or credentials.");
+  if (!["http:","https:"].includes(url.protocol) || url.username || url.password || url.search || url.hash || url.pathname !== "/") throw new Error("API_ORIGIN must be a complete HTTP(S) origin without a path or credentials.");
   if (url.protocol !== "https:" && !["localhost","127.0.0.1","[::1]"].includes(url.hostname)) throw new Error("Use HTTPS for the public API.");
   return url.origin;
 }
-const apiBaseURL = origin(process.env.PUBLIC_API_BASE_URL || "https://api.jpano.dev");
+const apiBaseURL = origin(process.env.API_ORIGIN || process.env.PUBLIC_API_BASE_URL || "http://127.0.0.1:48000");
 await rm(out, { recursive: true, force: true });
 await mkdir(out, { recursive: true });
 for (const item of ["index.html","admin.html","access.html","access-verify.html","access-grant.html","privacy.html","terms.html","data-deletion.html","styles","scripts","assets","service-worker.js"]) await cp(join(root,item),join(out,item),{recursive:true});
 await writeFile(join(out,"config.js"), `window.APP_CONFIG = Object.freeze(${JSON.stringify({apiBaseURL,statusIntervalMs:30000,requestTimeoutMs:7000})});\n`);
-const snapshotSource = process.env.PUBLIC_SNAPSHOT_URL?.trim();
+const snapshotSource = process.env.PUBLIC_SNAPSHOT_URL?.trim() || `${apiBaseURL}/api/public/snapshot`;
 if (snapshotSource) {
   try {
     const url = new URL(snapshotSource);
-    if (url.origin !== apiBaseURL || url.pathname !== "/api/public/snapshot" || url.search || url.hash) throw new Error("PUBLIC_SNAPSHOT_URL must be PUBLIC_API_BASE_URL/api/public/snapshot.");
+    if (url.origin !== apiBaseURL || url.pathname !== "/api/public/snapshot" || url.search || url.hash) throw new Error("PUBLIC_SNAPSHOT_URL must match API_ORIGIN/api/public/snapshot.");
     const response = await fetch(url,{signal:AbortSignal.timeout(15000),redirect:"error"});
     if (!response.ok) throw new Error(`Public snapshot returned HTTP ${response.status}.`);
     const text=await response.text(); if(Buffer.byteLength(text)>5*1024*1024)throw new Error("Snapshot is too large.");
