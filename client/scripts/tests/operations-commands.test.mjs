@@ -33,14 +33,14 @@ test('every requested chat project command is explicitly scoped by role',()=>{
  assert.equal(parseQuickCommand('/createproject','admin')?.name,'/createproject');
 });
 test('operations metadata and payment reconciliation endpoints are Admin-protected',()=>{
- const main=source('server/main.go');
+ const main=source('server/internal/application/routes.go');
  for(const route of ['/api/admin/database/tables','/api/admin/server/info','/api/admin/server/logs','/api/admin/chats/{id}/inquiries','/api/admin/project-offers/{id}/archive']){
   const line=main.split('\n').find(x=>x.includes(route));assert.match(line||'',/a\.requireAdmin\(/,route);
  }
- const recon=source('server/payment_reconcile.go');
+ const recon=source('server/internal/application/payment_reconcile.go');
  assert.match(recon,/queryPayMongoCheckout/);assert.match(recon,/paymongoSessionPaid/);
  assert.match(recon,/FOR UPDATE/);assert.match(recon,/status='paid',payment_id=\$1/);
- assert.doesNotMatch(source('server/project_inquiries.go'),/DELETE FROM portfolio\.project_payment_attempts/);
+ assert.doesNotMatch(source('server/internal/application/project_inquiries.go'),/DELETE FROM portfolio\.project_payment_attempts/);
 });
 test('schema alignment detects inquiry and archival columns before enabling database features',()=>{
  const validator=source('server/internal/database/database.go');

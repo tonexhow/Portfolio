@@ -4,6 +4,8 @@ REM JPano Portfolio - one-command release builder.
 REM Run: compile.bat
 REM Optional: compile.bat production https://backend.jpano.dev
 REM Final output: .\JPano-Release\ with only system, env, database, client, .env.
+REM Windows runtime binaries are GUI-subsystem (no terminal). stop.exe is packaged.
+REM Generated logs.txt is created only when the Windows backend is running.
 
 cd /d "%~dp0" || exit /b 1
 set "SOURCE=%CD%"
@@ -14,7 +16,8 @@ set "BACKUP=%PARENT%\JPano-Release.previous"
 set "HAD_PREVIOUS=0"
 
 if not exist "%SOURCE%\.env" (
-  echo ERROR: Missing source .env file.
+  echo ERROR: Missing private local .env file.
+  echo Copy .env.example to .env and fill your own credentials, or preserve your existing private .env.
   exit /b 1
 )
 where go >nul 2>&1
@@ -53,6 +56,12 @@ if exist "%RELEASE%\" (
   set "HAD_PREVIOUS=1"
 )
 
+REM Source ZIP overlays can retain superseded server/*.go files from the
+REM previous layout. Archive ONLY known migrated duplicates automatically;
+REM unknown Go files are preserved for explicit developer review.
+call "%SOURCE%\clean.bat" migrate
+if errorlevel 1 goto build_failed
+
 REM Validation, frontend build, secret scan and Go cross-compilation are
 REM already performed by the project build tool. No extra commands needed.
 echo [JPano] Building release...
@@ -64,6 +73,7 @@ REM Move that completed build INTO the project and trim its release contents.
 if not exist "%STAGING%\.jpano-generated" goto package_failed
 if exist "%STAGING%\BUILD_INCOMPLETE" goto package_failed
 if not exist "%STAGING%\system\windows\jpano-portfolio.exe" goto package_failed
+if not exist "%STAGING%\system\windows\stop.exe" goto package_failed
 if not exist "%STAGING%\env\client\.env" goto package_failed
 if not exist "%STAGING%\env\server\.env" goto package_failed
 if not exist "%STAGING%\database\schema.sql" goto package_failed
@@ -115,6 +125,11 @@ exit /b 1
 echo.
 echo ERROR: Release packaging could not remove all unnecessary files.
 echo Check: "%RELEASE%"
+REM Quarantine the incomplete new release, preserving earlier compiled binaries.
+if exist "%RELEASE%\" (
+  if not exist "%STAGING%\" move "%RELEASE%" "%STAGING%" >nul
+)
+call :restore_previous
 exit /b 1
 
 :restore_previous

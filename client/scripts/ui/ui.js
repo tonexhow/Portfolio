@@ -308,7 +308,7 @@
         <p>Building practical digital systems with clear interfaces and dependable logic.</p>
       </div>
       <div class="footer-center">
-        <p>© <span id="footerYear" data-footer-year></span> <span data-personal-name>Jhon Anthony Pano</span></p>
+        <p class="footer-copyright">© <span id="footerYear" data-footer-year></span> <button type="button" class="footer-name-button" data-business-card-open aria-haspopup="dialog" aria-controls="jpanoBusinessCardDialog" title="View Jhon Anthony Pano's business card"><span data-personal-name>Jhon Anthony Pano</span><span class="footer-card-arrow" aria-hidden="true">↗</span></button></p>
         <nav class="footer-links" id="footerLinks" data-footer-links aria-label="Social and contact links"></nav>
       </div>
       <div class="footer-right">

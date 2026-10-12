@@ -27,7 +27,7 @@ test('pricing with a previous concrete feature list is not blocked again',()=>{
   const guidance=pricingDiscovery('How much?',history);
   assert.match(guidance,/already outlined useful requirements/i);
   assert.match(guidance,/worklist|working scope/i);
-  const server=read('server/ai.go');
+  const server=read('server/internal/application/ai.go');
   assert.match(server,/visitorHasProjectScope\(in\)/);
   assert.match(server,/PRICE INQUIRY WITH PRIOR VISITOR SCOPE/);
   assert.match(read('client/scripts/pages/index/career-chat.js'),/if\(pricingScope\(body,history\)\.hasScope\)/);
@@ -56,7 +56,7 @@ test('composer has consistent size token for all controls',()=>{
   assert.match(read('client/scripts/chat/chat-composer.js'),/controlHeight/);
 });
 test('PayMongo recovery is quicker but payments remain server-verified',()=>{
-  const reconcile=read('server/payment_reconcile.go');
+  const reconcile=read('server/internal/application/payment_reconcile.go');
   assert.match(reconcile,/time\.NewTicker\(25 \* time\.Second\)/);
   assert.match(reconcile,/lastChecked/);
   assert.match(reconcile,/refreshCheckoutStatus\(cycle, id\)/);
@@ -65,7 +65,7 @@ test('PayMongo recovery is quicker but payments remain server-verified',()=>{
   assert.match(visitor,/verifyOfferPayment\(id\)/);
   assert.match(visitor,/if\(result\.verified\)/);
   assert.doesNotMatch(visitor,/Check payment with PayMongo/);
-  const checkout=read('server/project_offers.go');
+  const checkout=read('server/internal/application/project_offers.go');
   assert.match(checkout,/checkout_return=1/);
   assert.match(checkout,/Never from the visitor's redirect|only a signed checkout_session\.payment\.paid/i);
 });
@@ -89,5 +89,5 @@ test('compile.bat and compile orchestrator never publish private keys to client 
   assert.match(verifier,/PRIVATE_KEYS/);
   assert.match(verifier,/SECRET_EXPOSED/);
   assert.match(read('client/scripts/tools/split-env.mjs'),/clientKeys\.has\(key\)/);
-  assert.match(read('server/project_offers.go'),/PAYMONGO_ALLOW_LIVE/);
+  assert.match(read('server/internal/application/project_offers.go'),/PAYMONGO_ALLOW_LIVE/);
 });

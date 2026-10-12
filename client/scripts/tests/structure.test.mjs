@@ -22,7 +22,10 @@ test("source root contains exactly the application and requested Windows launche
   // are not application folders and aren't shipped in the source ZIP.
   const metadata=new Set([".git",".gitignore",".vscode",".idea",".DS_Store","Thumbs.db","Desktop.ini"]);
   const entries=(await readdir(root)).filter(name=>!metadata.has(name)).sort();
-  assert.deepEqual(entries,[".env","client","compile.bat","database","run.bat","server"]);
+  const required=[".env.example","api","clean.bat","client","compile.bat","database","docs","run.bat","server","vercel.json"];
+  for(const entry of required)assert.ok(entries.includes(entry),`Missing ${entry}`);
+  const allowed=new Set([...required,".env","JPano-Release","README.md",".bk"]);
+  for(const entry of entries)assert.ok(allowed.has(entry),`Unexpected source root item: ${entry}`);
   for(const dir of ["client","server","database"]){
     for(const item of await scan(join(root,dir))){
       assert.doesNotMatch(item,/\.bat$/i, "launcher must remain at root, not inside application folders");

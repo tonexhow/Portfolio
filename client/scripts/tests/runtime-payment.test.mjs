@@ -76,7 +76,7 @@ test('webhook drives WebSocket; browser only performs one delayed recovery check
  const chat=await source('client/scripts/pages/index/career-chat.js');
  const adminChats=await source('client/scripts/pages/admin/chats.js');
  const transactions=await source('client/scripts/pages/admin/transactions.js');
- const backend=await source('server/payment_reconcile.go');
+ const backend=await source('server/internal/application/payment_reconcile.go');
  assert.match(offers,/recoveryTimer=setTimeout/);
  assert.match(offers,/\},45000\)/);
  assert.doesNotMatch(offers,/poll=setInterval|verifiedTimer=setInterval|6000\)/);
@@ -86,14 +86,14 @@ test('webhook drives WebSocket; browser only performs one delayed recovery check
  assert.match(transactions,/portfolio:payment-reconnected/);
  assert.match(backend,/a\.chat\.sendThread\(thread/);
  assert.match(backend,/a\.chat\.sendAdmins\(/);
- const ws=await source('server/websocket.go');
+ const ws=await source('server/internal/application/websocket.go');
  assert.match(ws,/func \(c \*wsConn\) heartbeat/);
  assert.match(ws,/writeFrame\(0x9, nil\)/);
- assert.match(await source('server/chat.go'),/go c\.heartbeat\(heartbeatStop\)/);
+ assert.match(await source('server/internal/application/chat.go'),/go c\.heartbeat\(heartbeatStop\)/);
 });
 
 test('existing cookie-scoped guest chat receives payments while Admin is offline but cannot send messages',async()=>{
- const go=await source('server/chat.go');
+ const go=await source('server/internal/application/chat.go');
  const visitor=await source('client/scripts/pages/index/career-chat.js');
  assert.match(go,/threadID, err := a\.currentChatThread\(r\)/);
  assert.match(go,/if err != nil && !a\.chatAllowedForVisitor\(r\)/);

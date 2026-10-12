@@ -4,7 +4,7 @@ import {readFile,readdir} from 'node:fs/promises';
 import {resolve,join,dirname} from 'node:path';
 import {fileURLToPath} from 'node:url';
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'../../..');
-const routes=await readFile(join(root,'server/main.go'),'utf8');
+const routes=await readFile(join(root,'server/internal/application/routes.go'),'utf8');
 const declared=[...routes.matchAll(/mux\.HandleFunc\("(GET|POST|PATCH|PUT|DELETE) (\/[^\"]+)"/g)].map(x=>({method:x[1],path:x[2]}));
 function routeMatches(actual,target){
  const clean=value=>value.split('?')[0].replace(/\/\{[^/]+\}/g,'/{id}');
@@ -48,8 +48,8 @@ test('OAuth callback/start, payment, websocket, contact and admin endpoints rema
  ])assert.ok(declared.some(route=>route.method===method&&routeMatches(path,route.path)),`Missing backend handler: ${method} ${path}`);
 });
 test('provider redirect URIs derive from configured backend API_ORIGIN',async()=>{
- const auth=await readFile(join(root,'server/feedback_auth.go'),'utf8');
- const app=await readFile(join(root,'server/main.go'),'utf8');
+ const auth=await readFile(join(root,'server/internal/application/feedback_auth.go'),'utf8');
+ const app=await readFile(join(root,'server/internal/application/app.go'),'utf8');
  const settings=await readFile(join(root,'server/internal/config/config.go'),'utf8');
  assert.match(auth,/func \(a \*app\) feedbackPublicOrigin\(_ \*http\.Request\) string \{ return a\.apiURL \}/);
  assert.match(auth,/"\/auth\/feedback\/" \+ url\.PathEscape\(provider\) \+ "\/callback"/);

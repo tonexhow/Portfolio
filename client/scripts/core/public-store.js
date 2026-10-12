@@ -126,16 +126,26 @@
     await init();
     if (refreshing) return refreshing;
     refreshing = (async () => {
-      let data;
-      try {
-        data = await window.APIManager.request("/api/public/snapshot", { cache: "no-store" });
-        if (!valid(data)) throw new Error("Invalid portfolio update.");
-      } catch (error) {
-        // When Go is offline, a configured Supabase read-only RPC can still
-        // deliver freshly published projects. Otherwise keep the bundled copy.
-        if (directProjectsConfigured()) return refreshDirectPublic();
-        throw error;
+      // Supabase is the primary source for approved/public portfolio records.
+      // Go is only a compatibility fallback when published RPC access is not
+      // configured or temporarily unavailable. Neither path grants Admin rights.
+      if (directProjectsConfigured()) {
+        try {
+          const data = await refreshDirectPublic();
+          if (data) {
+            if (broadcast) {
+              const signal = { base, revision: data.revision, timestamp: Date.now() };
+              try { localStorage.setItem(signalKey, JSON.stringify(signal)); channel?.postMessage(signal); } catch {}
+            }
+            return data;
+          }
+        } catch (error) {
+          console.warn("Published Supabase read unavailable; checking API fallback:", error?.message || error);
+        }
       }
+      // Compatibility fallback: published, filtered API snapshot only.
+      const data = await window.APIManager.request("/api/public/snapshot", { cache: "no-store" });
+      if (!valid(data)) throw new Error("Invalid published API snapshot.");
       snapshot = data; cache(data); emit("server");
       if (broadcast) {
         const signal = { base, revision: data.revision, timestamp: Date.now() };
@@ -161,7 +171,7 @@
   function receive(signal) {
     if (signal?.base !== base) return;
     restore(); emit("another-tab");
-    if (window.ServerStatus?.online) void refresh().catch(() => {});
+    void refresh().catch(() => {}); // public data can update with Go offline
   }
   if (channel) channel.onmessage = event => receive(event.data);
   addEventListener("storage", event => { if (event.key === signalKey) { try { receive(JSON.parse(event.newValue)); } catch {} } });

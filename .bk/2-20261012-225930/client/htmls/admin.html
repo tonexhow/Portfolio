@@ -1,0 +1,398 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <meta name="theme-color" content="#f7f8fa">
+  <title>Management · JPano.dev</title>
+  <link rel="icon" href="/assets/icons/logo-tab.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles/style.css">
+  <link rel="stylesheet" href="/styles/admin.css?v=44">
+  <script src="/config.js"></script>
+  <script src="/scripts/ui/theme-init.js"></script>
+  <link rel="stylesheet" href="/styles/connection.css?v=41">
+  <link rel="stylesheet" href="/styles/project-admin.css?v=44">
+  <link rel="stylesheet" href="/styles/chat-enhancements.css?v=47">
+  <link rel="stylesheet" href="/styles/operations.css?v=3">
+</head>
+<body class="admin-body">
+  <header class="management-header">
+    <a class="management-brand" href="/" aria-label="JPano.dev portfolio">
+      <span class="brand-mark" aria-hidden="true">
+        <img src="/assets/icons/logo-light.svg" alt="" class="brand-icon logo-light">
+        <img src="/assets/icons/logo-dark.svg" alt="" class="brand-icon logo-dark">
+      </span>
+      <span class="management-brand-copy"><strong>JPano<span>.dev</span></strong><small>Portfolio Management</small></span>
+    </a>
+    <div class="management-clock" aria-live="off"><span id="adminDate">Loading date</span><time id="adminTime">--:--:--</time></div>
+    <div class="management-actions">
+      <span class="backend-status" data-backend-status data-state="offline" tabindex="0" role="status" aria-label="Server is offline"><span class="backend-dot" aria-hidden="true"></span><span class="backend-tooltip" role="tooltip">Server is offline</span></span>
+<button class="theme-icon-toggle" type="button" data-theme-toggle aria-label="Switch theme" title="Switch theme"><svg class="theme-icon-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><svg class="theme-icon-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.3 15.5A8.5 8.5 0 0 1 8.5 3.7 8.5 8.5 0 1 0 20.3 15.5z"/></svg></button>
+      <a class="header-portfolio-button" href="/" aria-label="Go back to portfolio" title="Portfolio">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 6 4 12l6 6"/><path d="M4 12h12a4 4 0 0 0 4-4V5"/></svg><span>Portfolio</span>
+      </a>
+      <button class="end-session-button" id="endSessionButton" type="button" aria-label="End session" title="End Session">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 4H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h5"/><path d="m16 8 4 4-4 4M20 12H9"/></svg><span>End Session</span>
+      </button>
+    </div>
+  </header>
+
+  <aside class="management-sidebar" aria-label="Management navigation">
+    <nav class="management-nav">
+<button class="management-nav-item active" type="button" data-admin-view="overview" aria-label="Overview">
+        <svg viewBox="0 0 24 24"><path d="M4 13h6V4H4v9Zm0 7h6v-4H4v4Zm10 0h6v-9h-6v9Zm0-16v4h6V4h-6Z"/></svg>
+        <span>Overview</span>
+      </button>
+<button class="management-nav-item" type="button" data-admin-view="dashboard" aria-label="Dashboard">
+        <svg viewBox="0 0 24 24"><path d="M4 19V9m5 10V5m5 14v-7m5 7V3"/></svg>
+        <span>Dashboard</span>
+      </button>
+<button class="management-nav-item" type="button" data-admin-view="chats" aria-label="Chats">
+        <svg viewBox="0 0 24 24"><path d="M4 5h16v11H8l-4 3V5Z"/><path d="M8 9h8M8 12h5"/></svg>
+        <span>Chats</span><em class="nav-count-badge" id="chatUnreadBadge" hidden>0</em>
+      </button>
+<button class="management-nav-item" type="button" data-admin-view="transactions" aria-label="Transactions">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M7 8h10M7 12h7M7 16h5"/></svg>
+        <span>Transactions</span>
+      </button>
+<button class="management-nav-item" type="button" data-admin-view="projects" aria-label="Projects">
+        <svg viewBox="0 0 24 24"><path d="M4 7h6l2 2h8v11H4z"/><path d="M4 7V4h6l2 3"/></svg>
+        <span>Projects</span>
+      </button>
+<button class="management-nav-item" type="button" data-admin-view="certificates" aria-label="Certificates">
+        <svg viewBox="0 0 24 24"><path d="M6 3h12v18l-6-3-6 3V3Z"/><path d="M9 8h6M9 12h6"/></svg>
+        <span>Certificates</span>
+      </button>
+<button class="management-nav-item" type="button" data-admin-view="career" aria-label="Career Profile">
+        <svg viewBox="0 0 24 24"><path d="M7 3h8l4 4v14H7z"/><path d="M15 3v5h5M10 13h6M10 17h6"/></svg>
+        <span>Career Profile</span>
+      </button>
+<button class="management-nav-item" type="button" data-admin-view="feedbacks" aria-label="Feedbacks">
+        <svg viewBox="0 0 24 24"><path d="M20 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h9a4 4 0 0 1 4 4v8Z"/><path d="m8 11 2.3 2.2L16 8"/></svg>
+        <span>Feedbacks</span>
+      </button>
+<button class="management-nav-item" type="button" data-admin-view="contacts" aria-label="Contact">
+        <svg viewBox="0 0 24 24"><path d="M4 5h16v14H4z"/><path d="m4 7 8 6 8-6"/></svg>
+        <span>Contact</span><em class="nav-count-badge" id="contactUnreadBadge" hidden>0</em>
+      </button>
+<button class="management-nav-item" type="button" data-admin-view="artificial-intelligence" aria-label="Artificial Intelligence">
+        <svg viewBox="0 0 24 24"><rect x="5" y="6" width="14" height="13" rx="3"/><path d="M9 6V3m6 3V3M3 12h2m14 0h2M9 11h.01M15 11h.01M9 15h6"/></svg>
+        <span>Artificial Intelligence</span>
+      </button>
+<button class="management-nav-item" type="button" data-admin-view="database" aria-label="Database">
+        <svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 4 18 4 18 0V5M3 12c0 4 18 4 18 0"/></svg><span>Database</span>
+      </button>
+<button class="management-nav-item" type="button" data-admin-view="server" aria-label="Server">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="8" rx="2"/><rect x="3" y="13" width="18" height="8" rx="2"/><path d="M7 7h.01M7 17h.01M11 7h6M11 17h6"/></svg><span>Server</span>
+      </button>
+    </nav>
+
+    <div class="management-sidebar-footer">
+      <button class="information-cta" type="button" data-admin-view="information" aria-label="Information editor">
+        <svg viewBox="0 0 24 24"><path d="M12 3 4 7v10l8 4 8-4V7l-8-4Z"/><path d="M9 10h6M9 14h6"/></svg>
+        <span><b>Information</b><small>Edit portfolio data</small></span>
+      </button>
+
+      <div class="sidebar-session">
+        <span class="session-live-dot"></span>
+        <div><small>Session remaining</small><strong id="sessionRemaining">--:--:--</strong></div>
+      </div>
+    </div>
+  </aside>
+
+  <main class="management-main" id="managementMain">
+    <p class="offline-notice" data-offline-notice>The server is offline. Portfolio browsing is still available; management changes will resume after reconnection.</p>
+      <section class="admin-view active" id="view-overview" data-view="overview">
+      <div class="admin-page-heading overview-heading">
+        <div><p class="admin-eyebrow">Overview</p><h1>Portfolio at a glance.</h1><p>Current activity, moderation queues, projects, and recent interactions in one place.</p></div>
+      </div>
+      <div class="metric-grid metric-grid-primary" id="overviewMetrics"></div>
+      <div class="overview-layout">
+        <article class="admin-card">
+          <div class="card-heading"><div><span>Recent activity</span><h2>Latest interactions</h2></div><button class="icon-button" type="button" data-refresh-view="overview" aria-label="Refresh overview">↻</button></div>
+          <div class="activity-list" id="recentActivity"><div class="admin-empty">Loading activity…</div></div>
+        </article>
+        <article class="admin-card overview-status-card">
+          <div class="card-heading"><div><span>Queues</span><h2>Needs attention</h2></div></div>
+          <div class="queue-list" id="overviewQueues"></div>
+        </article>
+      </div>
+    </section>
+
+    <section class="admin-view" id="view-dashboard" data-view="dashboard">
+      <div class="admin-page-heading dashboard-heading">
+        <div><p class="admin-eyebrow">Dashboard</p><h1>Visitor analytics.</h1><p>Daily and monthly portfolio traffic with lightweight, first-party analytics.</p></div>
+        <button class="admin-link-button" type="button" data-refresh-view="dashboard">Refresh data</button>
+      </div>
+      <div class="metric-grid" id="dashboardMetrics"></div>
+      <div class="chart-grid">
+        <article class="admin-card chart-card">
+          <div class="card-heading"><div><span>Last 14 days</span><h2>Daily visits</h2></div></div>
+          <div class="chart-wrap"><canvas id="dailyVisitsChart" aria-label="Daily visits chart"></canvas></div>
+        </article>
+        <article class="admin-card chart-card">
+          <div class="card-heading"><div><span>Last 12 months</span><h2>Monthly visits</h2></div></div>
+          <div class="chart-wrap"><canvas id="monthlyVisitsChart" aria-label="Monthly visits chart"></canvas></div>
+        </article>
+      </div>
+      <article class="admin-card analytics-table-card">
+        <div class="card-heading"><div><span>Daily breakdown</span><h2>Recent traffic</h2></div></div>
+        <div class="analytics-table" id="dailyVisitsTable"></div>
+      </article>
+    </section>
+
+    <section class="admin-view" id="view-career" data-view="career">
+      <div class="admin-page-heading"><div><p class="admin-eyebrow">Career Profile</p><h1>Professional documents.</h1><p>Publish multiple resumes, curriculum vitae, and biodata files. PDFs live in Supabase Storage; the database keeps only paths and metadata.</p></div><button class="admin-icon-cta" id="addCareerButton" type="button"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span>Add document</span></button></div>
+      <div class="career-admin-grid" id="careerAdminGrid"><div class="admin-empty">Loading documents…</div></div>
+    </section>
+
+    <section class="admin-view" id="view-chats" data-view="chats">
+      <div class="admin-page-heading"><div><p class="admin-eyebrow">Chats</p><h1>Live visitor conversations.</h1><p>Manage live conversations and messages sent by verified visitors while you are offline. Messages automatically expire after 7 days.</p></div><span class="chat-transport-state" id="chatTransportState"><i></i> Connecting…</span></div>
+      <div class="chat-admin-layout">
+        <div class="chat-list-panel">
+          <div class="chat-table-shell"><table class="chat-table"><thead><tr><th>Conversation</th><th>Visitor</th><th>Latest message</th><th>Updated</th></tr></thead><tbody id="chatTableBody"><tr><td colspan="4">Loading chats…</td></tr></tbody></table></div>
+          <div class="admin-pagination chat-pagination" id="chatPagination"><button type="button" id="chatPrev" aria-label="Previous chat page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button><span id="chatPage">Page 1 of 1</span><button type="button" id="chatNext" aria-label="Next chat page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button></div>
+        </div>
+        <aside class="chat-conversation" id="chatConversation"><div class="chat-conversation-empty">Select a conversation to view messages.</div></aside>
+      </div>
+    </section>
+
+    <section class="admin-view" id="view-transactions" data-view="transactions">
+      <div class="admin-page-heading"><div><p class="admin-eyebrow">Financial records</p><h1>Project transactions.</h1><p>Checkout attempts and verified payments, linked to project proposals and visitors. These are private payment records; only signed PayMongo events update a project's paid balance.</p></div><button type="button" class="admin-icon-cta" id="transactionRefresh">↻ <span>Refresh</span></button></div>
+      <div class="transactions-toolbar"><label>Payment status<select id="transactionStatusFilter"><option value="">All transactions</option><option value="paid">Verified paid</option><option value="pending">Awaiting checkout</option><option value="failed">Failed</option></select></label><p id="transactionSummary">Loading payments…</p></div>
+      <div class="transaction-controls"><button id="transactionClearPaid" type="button" class="admin-link-button">Archive paid records from view</button><div class="transaction-view-switch" role="group" aria-label="Transaction visibility"><button type="button" class="active" data-transaction-visibility="active" aria-pressed="true">Active</button><button type="button" data-transaction-visibility="archived" aria-pressed="false">Archived</button><button type="button" data-transaction-visibility="all" aria-pressed="false">All</button></div></div><div id="transactionRecords" class="transaction-record-list"><p class="admin-empty">Select Transactions to review.</p></div>
+      <div class="admin-pagination"><button id="transactionPrev" type="button" aria-label="Previous transactions">Previous</button><span id="transactionPage">Page 1 of 1</span><button id="transactionNext" type="button" aria-label="Next transactions">Next</button></div>
+    </section>
+
+    <dialog id="transactionDetailsModal" class="admin-detail-dialog"><div class="admin-detail-dialog-inner"><header><div><small>Payment and project details</small><h2 id="transactionModalHeading">Transaction</h2></div><button type="button" id="transactionModalClose" aria-label="Close">✕</button></header><div id="transactionModalBody"></div></div></dialog>
+
+    <section class="admin-view" id="view-artificial-intelligence" data-view="artificial-intelligence">
+      <div class="admin-page-heading"><div><p class="admin-eyebrow">Assistant control center</p><h1>Artificial Intelligence.</h1><p>Multiple keys, selectable provider models, per-key priority and pause controls. Credentials stay encrypted server-side; environment values remain backup fallbacks.</p></div><button type="button" class="admin-icon-cta" id="aiRefresh">↻ <span>Refresh</span></button></div>
+      <div class="ai-admin-layout">
+        <article class="admin-card ai-manager-card"><div class="ai-section-heading"><div><span>Provider routing</span><h2>Your AI connections</h2><p class="ai-footnote">Manage encrypted API keys, priorities and models without editing server files.</p></div><span class="ai-routing-state" id="aiStatusLabel">Checking…</span></div>
+          <div class="ai-health-bar"><div><strong>Connection diagnostics</strong><p id="aiProviderTestResults" role="status">Select Test connections to check configured providers. Diagnostics may use a small number of API tokens.</p></div><button type="button" id="aiTestProviders" class="admin-link-button">Test connections</button></div>
+          <p class="ai-footnote" id="aiMasterKeyNote">Encrypted key storage required.</p>
+          <div id="aiProviderList" class="ai-provider-list"><p class="admin-empty">Loading…</p></div>
+          <div class="admin-pagination"><button id="aiPrev" type="button">Previous</button><span id="aiPage">Page 1 of 1</span><button id="aiNext" type="button">Next</button></div>
+          <h3>Add a provider credential</h3>
+          <form id="aiAddProvider" class="ai-provider-new">
+            <label>Provider<select id="aiProviderType" name="provider" required></select></label>
+            <label>Label (optional)<input name="label" maxlength="80" placeholder="e.g. Backup key"></label>
+            <label>Model (optional)<input name="model" maxlength="140" placeholder="Use provider default"></label>
+            <label>Priority (lower first)<input name="priority" type="number" min="0" max="10000" value="50" required></label>
+            <label class="ai-key-field">Private API key<input name="api_key" type="password" autocomplete="new-password" maxlength="4000" required placeholder="Paste your provider API key"></label>
+            <label class="ai-checkbox"><input type="checkbox" name="enabled" checked> Enable immediately</label>
+            <button type="submit" class="ai-primary-btn">Add encrypted key</button>
+          </form>
+        </article>
+        <article class="admin-card ai-draft-manager"><div class="ai-section-heading"><div><span>Human-reviewed communication</span><h2>AI email drafts</h2></div></div>
+          <p class="ai-footnote" id="aiAutodraftNote">Automatic drafting status not available yet.</p>
+          <p class="ai-footnote">When automatic email is enabled, the system sends an AI-assisted reply only when a valid email and SMTP are available. Otherwise drafts stay available for manual review and sending. Sent history is retained for 15 days.</p>
+          <div id="aiDraftList" class="ai-draft-list"><p class="admin-empty">Loading…</p></div>
+          <div class="admin-pagination"><button id="aiDraftPrev" type="button">Previous</button><span id="aiDraftPage">Page 1 of 1</span><button id="aiDraftNext" type="button">Next</button></div>
+        </article>
+      </div>
+    </section>
+
+    <section class="admin-view" id="view-database" data-view="database">
+      <div class="admin-page-heading"><div><p class="admin-eyebrow">Read-only inspection</p><h1>Database overview.</h1><p>Tables, approximate row counts, storage sizes and availability. No raw SQL editor or destructive actions.</p></div><button type="button" class="admin-icon-cta" id="databaseRefresh">↻ <span>Refresh</span></button></div>
+      <div class="admin-ops-summary" id="databaseSummary">Loading database details…</div>
+      <div class="admin-card"><div class="admin-ops-table" id="databaseTables"><p class="admin-empty">Loading tables…</p></div></div>
+    </section>
+    <section class="admin-view" id="view-server" data-view="server">
+      <div class="admin-page-heading"><div><p class="admin-eyebrow">Runtime diagnostics</p><h1>Server monitor.</h1><p>Deployment location, runtime and resource metrics. The live console is a sanitized, read-only activity feed (latest 50 lines), not an executable shell.</p></div><button type="button" class="admin-icon-cta" id="serverRefresh">↻ <span>Refresh</span></button></div>
+      <div class="admin-ops-summary" id="serverSummary">Loading server details…</div>
+      <section class="admin-card network-insight"><div><h2>Network diagnostics</h2><p>This optional check makes an outbound request to identify the server's public IP and likely network operator, and measures a small download sample. Results are only visible in Admin.</p></div><button id="serverNetworkCheck" type="button" class="admin-link-button">Run network check</button><div id="serverNetworkResult" role="status">Not tested. This is separate from live adapter throughput.</div></section>
+      <div class="server-metric-grid" id="serverMetrics"></div>
+      <article class="admin-card server-console-card"><div class="card-heading"><div><span>Live view · last 50 lines</span><h2>Server activity</h2></div><span class="server-console-state" id="serverLogState">Connecting…</span></div><div id="serverTerminal" class="server-terminal" role="log" aria-label="Recent server activity"><p>Waiting for recent events…</p></div></article>
+    </section>
+
+    <section class="admin-view" id="view-feedbacks" data-view="feedbacks">
+      <div class="admin-page-heading list-heading">
+        <div><p class="admin-eyebrow">Feedbacks</p><h1>Moderate public feedback.</h1><p>Review new feedback before it becomes public, then control display and pinning. Twenty records are shown per page.</p></div>
+        <div class="feedback-heading-actions">
+          <button class="admin-link-button feedback-privacy-toggle" id="feedbackPrivacyToggle" type="button" aria-pressed="false" title="Show full feedback identities">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.5"/></svg><span>Unmask details</span>
+          </button>
+          <button class="icon-button heading-refresh" type="button" data-refresh-view="feedbacks" aria-label="Refresh feedbacks" title="Refresh">↻</button>
+        </div>
+      </div>
+      <div class="admin-toolbar">
+        <label class="admin-search"><span>Search</span><input id="feedbackSearch" type="search" placeholder="Name, account or comment"></label>
+        <label class="admin-filter"><span>Status</span><select id="feedbackStatusFilter"><option value="">All</option><option value="pending">Awaiting review</option><option value="approved">Accepted · displayed</option><option value="hidden">Accepted · hidden</option></select></label>
+      </div>
+      <div class="management-records" id="feedbackRecords"></div>
+      <div class="admin-pagination" id="feedbackPagination"><button type="button" id="feedbackPrev">← Previous</button><span id="feedbackPage">Page 1 of 1</span><button type="button" id="feedbackNext">Next →</button></div>
+    </section>
+
+    <section class="admin-view" id="view-contacts" data-view="contacts">
+      <div class="admin-page-heading">
+        <div><p class="admin-eyebrow">Contact</p><h1>Messages and inquiries.</h1><p>Review portfolio contact submissions and organize them as new, read, or archived.</p></div>
+      </div>
+      <div class="admin-toolbar">
+        <label class="admin-search"><span>Search</span><input id="contactSearch" type="search" placeholder="Name, email, subject, message"></label>
+        <label class="admin-filter"><span>Status</span><select id="contactStatusFilter"><option value="">All</option><option value="read">Read</option><option value="new">Unread</option></select></label>
+      </div>
+      <div class="management-records" id="contactRecords"></div>
+      <div class="admin-pagination" id="contactPagination"><button type="button" id="contactPrev">← Previous</button><span id="contactPage">Page 1 of 1</span><button type="button" id="contactNext">Next →</button></div>
+    </section>
+
+    <section class="admin-view" id="view-certificates" data-view="certificates">
+      <div class="admin-page-heading certificate-admin-heading">
+        <div><p class="admin-eyebrow">Certificates</p><h1>Manage published credentials.</h1><p>Add certificate images, control visibility, and pin selected records above the normal newest-to-oldest date order.</p></div>
+        <button class="admin-icon-cta" id="addCertificateButton" type="button" aria-label="Add certificate" title="Add certificate"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>Add certificate</span></button>
+      </div>
+      <div class="admin-toolbar">
+        <label class="admin-search"><span>Search</span><input id="certificateSearch" type="search" placeholder="Provider"></label>
+        <label class="admin-filter"><span>Display</span><select id="certificateStatusFilter"><option value="">All</option><option value="shown">Shown</option><option value="hidden">Hidden</option><option value="pinned">Pinned</option></select></label>
+      </div>
+      <div class="certificate-management-grid" id="certificateRecords"></div>
+      <div class="admin-pagination" id="certificateAdminPagination"><button type="button" id="certificateAdminPrev">← Previous</button><span id="certificateAdminPage">Page 1 of 1</span><button type="button" id="certificateAdminNext">Next →</button></div>
+    </section>
+
+    <section class="admin-view" id="view-projects" data-view="projects">
+      <div class="admin-page-heading project-admin-heading">
+        <div><p class="admin-eyebrow">Projects</p><h1>Control public project cards.</h1><p>Add images, descriptions, and links in one place. Reorder projects and choose which cards appear publicly; connected pages update automatically.</p></div>
+        <div class="project-heading-actions">
+          <button class="admin-link-button" id="editProjectPositionButton" type="button"><span>Edit position</span></button>
+          <button class="admin-icon-cta" id="addProjectButton" type="button" aria-label="Add project" title="Add project"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>Add project</span></button>
+        </div>
+      </div>
+      <div class="admin-toolbar">
+        <label class="admin-search"><span>Search</span><input id="projectSearch" type="search" placeholder="Project name, description, URL"></label>
+        <label class="admin-filter"><span>Visibility</span><select id="projectSourceFilter"><option value="all">All projects</option><option value="shown">Displayed</option><option value="hidden">Hidden</option></select></label>
+      </div>
+      <div class="project-management-grid" id="projectRecords"></div>
+      <div class="admin-pagination" id="projectPagination"><button type="button" id="projectPrev">← Previous</button><span id="projectPage">Page 1 of 1</span><button type="button" id="projectNext">Next →</button></div>
+    </section>
+
+    <section class="admin-view information-view" id="view-information" data-view="information">
+      <div class="admin-page-heading">
+        <div><p class="admin-eyebrow">Information</p><h1>Personal information editor.</h1><p>Manage the information shared by all portfolio pages. Changes are validated and saved to the database. Every value in this document is public; never include credentials.</p></div>
+        <div class="information-heading-actions"><button class="admin-link-button" type="button" data-refresh-view="information" data-requires-server>Reload</button><span class="json-state" id="jsonState">Loading…</span><button class="admin-link-button accent" id="saveInformationButton" type="button" disabled>Save changes</button></div>
+      </div>
+      <div class="editor-shell">
+        <div class="editor-titlebar"><div><span class="editor-dot red"></span><span class="editor-dot amber"></span><span class="editor-dot green"></span></div><span>Database · personal information</span><small id="informationModified">Not loaded</small></div>
+        <div class="editor-body"><pre class="editor-lines" id="editorLines" aria-hidden="true">1</pre><textarea id="informationEditor" spellcheck="false" autocomplete="off" aria-label="Database · personal information editor"></textarea></div>
+        <div class="editor-statusbar"><span id="editorPosition">Ln 1, Col 1</span><span>JSON · UTF-8</span></div>
+      </div>
+    </section>
+
+    <footer class="site-footer management-shared-footer" data-shared-footer></footer>
+  </main>
+
+  <div class="modal-backdrop" id="careerModal" hidden>
+    <div class="management-modal career-modal" role="dialog" aria-modal="true" aria-labelledby="careerModalTitle">
+      <div class="modal-heading"><div><p class="admin-eyebrow">Career Profile</p><h2 id="careerModalTitle">Add document</h2></div><button class="modal-close" type="button" data-close-modal="careerModal" aria-label="Close">×</button></div>
+      <form id="careerForm"><input type="hidden" id="careerId">
+        <div class="form-grid"><label><span>Document type</span><select id="careerType" required><option value="resume">Resume</option><option value="cv">Curriculum Vitae</option><option value="biodata">Biodata</option></select></label><label><span>Display order</span><input id="careerOrder" type="number" min="1" value="1" required></label></div>
+        <label><span>Title</span><input id="careerTitle" maxlength="160" required placeholder="Software Developer Resume"></label>
+        <label><span>Description</span><textarea id="careerDescription" maxlength="2000" rows="4" placeholder="Short description for employers"></textarea></label>
+        <label><span>PDF file</span><input id="careerFile" type="file" accept="application/pdf,.pdf"><small>PDF only, maximum 10 MB. Leave empty while editing to keep the current file.</small></label>
+        <label class="toggle-field"><span>Show publicly</span><input id="careerVisible" type="checkbox" checked><i></i></label>
+        <div class="modal-actions"><button class="modal-secondary" type="button" data-close-modal="careerModal">Cancel</button><button class="modal-primary" id="saveCareerButton" type="submit">Save document</button></div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="endSessionModal" hidden>
+    <div class="management-modal small" role="dialog" aria-modal="true" aria-labelledby="endSessionTitle">
+      <span class="modal-icon danger">!</span>
+      <h2 id="endSessionTitle">End this management session?</h2>
+      <p>This browser will immediately lose management access and will need to complete `/access` again.</p>
+      <div class="modal-actions"><button class="modal-secondary" type="button" data-close-modal="endSessionModal">Keep session</button><button class="modal-danger" id="confirmEndSession" type="button">End Session</button></div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="contactReplyModal" hidden>
+    <div class="management-modal contact-reply-modal" role="dialog" aria-modal="true" aria-labelledby="contactReplyTitle">
+      <div class="modal-heading"><div><p class="admin-eyebrow">Email reply</p><h2 id="contactReplyTitle">Reply to contact</h2></div><button class="modal-close" type="button" data-close-modal="contactReplyModal" aria-label="Close">×</button></div>
+      <div class="contact-reply-recipient"><span>To</span><div><strong id="contactReplyName">Contact</strong><small id="contactReplyEmail">email@example.com</small></div></div>
+      <div class="contact-reply-original"><span>Original message</span><strong id="contactReplyOriginalSubject">Subject</strong><p id="contactReplyOriginalMessage">Message</p></div>
+      <form id="contactReplyForm">
+        <input type="hidden" id="contactReplyId">
+        <label><span>Subject</span><input id="contactReplySubject" maxlength="160" required></label>
+        <label><span>Reply</span><textarea id="contactReplyMessage" rows="7" maxlength="5000" required placeholder="Write your reply…"></textarea></label>
+        <p class="contact-reply-note">This sends a responsive HTML email using the configured SMTP account. The recipient can reply directly to continue the conversation.</p>
+        <div class="modal-actions"><button class="modal-secondary" type="button" data-close-modal="contactReplyModal">Cancel</button><button class="modal-primary" id="sendContactReply" type="submit">Send reply</button></div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="certificateModal" hidden>
+    <div class="management-modal certificate-modal" role="dialog" aria-modal="true" aria-labelledby="certificateModalTitle">
+      <div class="modal-heading"><div><p class="admin-eyebrow">Certificate record</p><h2 id="certificateModalTitle">Add certificate</h2></div><button class="modal-close" type="button" data-close-modal="certificateModal" aria-label="Close">×</button></div>
+      <form id="certificateForm">
+        <input type="hidden" id="certificateId">
+        <div class="certificate-upload-zone" id="certificateUploadZone" tabindex="0" role="button" aria-label="Choose or drop certificate image">
+          <input id="certificateImage" type="file" accept="image/jpeg,image/png,image/gif,image/webp,.jpg,.jpeg,.jfif,.png,.gif,.webp" hidden>
+          <img id="certificateImagePreview" alt="Certificate preview" hidden>
+          <div class="certificate-upload-copy" id="certificateUploadCopy"><strong>Drop certificate image</strong><span>or click to choose a JPG, PNG, GIF, or WebP image</span><small>Images above 5 MB are automatically reduced before storage.</small></div>
+        </div>
+        <div class="certificate-source-divider"><span>or use an image URL</span></div>
+        <label><span>Image URL</span><input id="certificateImageURL" type="url" placeholder="https://example.com/certificate.jpg"></label>
+        <div class="form-grid">
+          <label><span>Year</span><input id="certificateDate" type="text" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" required placeholder="2026"></label>
+          <label><span>Provider</span><input id="certificateProvider" maxlength="120" required placeholder="Certificate provider"></label>
+        </div>
+        <div class="form-grid compact certificate-toggle-grid">
+          <label class="toggle-field"><span>Show publicly</span><input id="certificateVisible" type="checkbox" checked><i></i></label>
+          <label class="toggle-field"><span>Pin first</span><input id="certificatePinned" type="checkbox"><i></i></label>
+        </div>
+        <p class="certificate-upload-status" id="certificateUploadStatus">No image selected.</p>
+        <div class="modal-actions"><button class="modal-secondary" type="button" data-close-modal="certificateModal">Cancel</button><button class="modal-primary" id="saveCertificateButton" type="submit">Save certificate</button></div>
+      </form>
+    </div>
+  </div>
+
+  <div class="certificate-drop-overlay" id="certificateDropOverlay" hidden><div><strong>Drop certificate image anywhere</strong><span>The file will open in the certificate editor.</span></div></div>
+
+  <div class="modal-backdrop" id="projectModal" hidden>
+    <div class="management-modal project-modal" role="dialog" aria-modal="true" aria-labelledby="projectModalTitle">
+      <div class="modal-heading"><div><p class="admin-eyebrow">Portfolio project</p><h2 id="projectModalTitle">Add a project</h2></div><button class="modal-close" type="button" data-close-modal="projectModal" aria-label="Close">×</button></div>
+      <form id="projectForm">
+        <input type="hidden" id="projectKey">
+        <div class="form-grid"><label><span>Title</span><input id="projectName" maxlength="160" required></label><label><span>Category</span><input id="projectType" maxlength="80" placeholder="Web application"></label></div>
+        <div class="form-grid"><label><span>Live website <small>Optional</small></span><input id="projectURL" type="url" placeholder="https://example.com"></label><label><span>Source code <small>Optional</small></span><input id="projectSourceURL" type="url" placeholder="https://github.com/owner/project"></label></div>
+        <label><span>Full description</span><textarea id="projectDescription" rows="5" maxlength="20000" placeholder="Describe the project, its purpose, and what you built."></textarea></label>
+        <label><span>Technology stack</span><input id="projectTechnologies" maxlength="2000" placeholder="HTML, CSS, JavaScript, Go, PostgreSQL"><small>Separate technologies with commas.</small></label>
+        <div class="project-media-editor">
+          <div class="project-editor-heading"><h3>Project logo</h3><small>Floats above the cover image</small></div>
+          <div class="form-grid"><label><span>Logo URL</span><input id="projectIcon" placeholder="https://... or /assets/..."></label><label class="project-file-field"><span>Or upload a logo</span><input id="projectLogoFile" type="file" accept="image/png,image/jpeg,image/webp,image/gif"><small>PNG, JPEG, WebP or GIF · up to 5 MB</small></label></div>
+          <div class="project-editor-heading"><h3>Project images</h3><small>First image is the cover · up to 12</small></div>
+          <label class="project-file-field"><span>Add images</span><input id="projectImageFiles" type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple></label>
+          <div class="project-url-entry"><input id="projectImageURL" aria-label="Image URL" placeholder="Paste an HTTPS image URL"><button class="modal-secondary" id="addProjectImageURL" type="button">Add image</button></div>
+          <div id="projectImageEditor" class="project-image-editor" aria-live="polite"></div>
+          <p class="form-note">Use the arrows to choose the cover and gallery order. Images are uploaded when you save.</p>
+        </div>
+        <label class="toggle-field"><span>Display on portfolio</span><input id="projectVisible" type="checkbox" checked><i></i></label>
+        <div class="modal-actions"><button class="modal-secondary" type="button" data-close-modal="projectModal">Cancel</button><button class="modal-primary" id="saveProjectButton" type="submit" data-requires-server>Save project</button></div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="informationChallengeModal" hidden>
+    <div class="management-modal challenge-modal" role="dialog" aria-modal="true" aria-labelledby="informationChallengeTitle">
+      <div class="modal-heading"><div><p class="admin-eyebrow">Protected save</p><h2 id="informationChallengeTitle">Confirm the 20-character challenge.</h2></div><button class="modal-close" type="button" data-close-modal="informationChallengeModal" aria-label="Close">×</button></div>
+      <p class="challenge-help">Type the challenge exactly. This prevents accidental or playful edits from being committed.</p>
+      <code class="save-challenge-value" id="saveChallengeValue">Loading…</code>
+      <div class="save-challenge-cells" id="saveChallengeCells"></div>
+      <div class="challenge-progress"><span id="saveChallengeProgress"></span></div>
+      <div class="challenge-expiry"><span>Challenge expires</span><strong id="saveChallengeTimer">02:00</strong></div>
+      <div class="modal-actions"><button class="modal-secondary" type="button" data-close-modal="informationChallengeModal">Cancel</button><button class="modal-primary" id="confirmInformationSave" type="button" disabled>Confirm & Save</button></div>
+    </div>
+  </div>
+
+  <div class="toast-region" id="toastRegion" aria-live="polite" aria-atomic="true"></div>
+  <script src="/scripts/core/cache_manager.js"></script>
+  <script src="/scripts/core/public-store.js"></script>
+  <script src="/scripts/core/api_manager.js?v=45"></script>
+  <script src="/scripts/core/server-status.js?v=42"></script>
+  <script src="/scripts/ui/ui.js?v=44"></script>
+  <script type="module" src="/scripts/pages/admin/admin.js?v=45"></script>
+</body>
+</html>

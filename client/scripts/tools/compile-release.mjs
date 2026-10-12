@@ -36,7 +36,8 @@ function run(command,args,options={}){
 }
 console.log('[JPano] Validating frontend source…');
 run(node,['client/scripts/tools/check.mjs']);
-run(node,['--test','client/scripts/tests/structure.test.mjs','client/scripts/tests/final-production.test.mjs','client/scripts/tests/release-final.test.mjs']);
+const testFiles=(await readdir(join(source,'client','scripts','tests'))).filter(name=>name.endsWith('.test.mjs')).sort().map(name=>`client/scripts/tests/${name}`);
+run(node,['--test',...testFiles]);
 console.log('[JPano] Building static frontend…');
 const buildEnv={...process.env};
 if(mode==='production' && deployOrigin){
@@ -47,6 +48,8 @@ if(mode==='production' && deployOrigin){
 run(node,['client/htmls/vercel/build.mjs'],{env:buildEnv});
 console.log('[JPano] Checking browser output for private credentials…');
 run(node,['client/scripts/tools/verify-client-secrets.mjs']);
+console.log('[JPano] Running Go package tests…');
+run('go',['test','./...'],{cwd:join(source,'server')});
 console.log('[JPano] Cross-compiling Go…');
 const targets=[
   ['windows','amd64','system/windows/jpano-portfolio.exe'],
@@ -58,11 +61,27 @@ for(const [os,arch,relativeFile] of targets){
   const filepath=join(output,...relativeFile.split('/'));
   await mkdir(dirname(filepath),{recursive:true});
   console.log(`[JPano] ${os}/${arch}`);
-  run('go',['build','-trimpath','-ldflags=-s -w','-o',filepath,'.'],{
+  run('go',['build','-trimpath',`-ldflags=-s -w${os==='windows'?' -H=windowsgui':''}`,'-o',filepath,'.'],{
     cwd:join(source,'server'),env:{...process.env,GOOS:os,GOARCH:arch,CGO_ENABLED:'0'}
   });
   if(os!=='windows')await chmod(filepath,0o755).catch(()=>{});
 }
+// A separate GUI-subsystem stop tool signals this installation and only
+// force-terminates when the recorded PID matches its exact executable path.
+const stopExe=join(output,'system','windows','stop.exe');
+run('go',['build','-trimpath','-ldflags=-s -w -H=windowsgui','-o',stopExe,'.'],{
+  cwd:join(source,'server','tools','stop'),
+  env:{...process.env,GOOS:'windows',GOARCH:'amd64',CGO_ENABLED:'0'}
+});
+for(const file of [join(output,'system','windows','jpano-portfolio.exe'),stopExe]){
+  const pe=await readFile(file);
+  if(pe.toString('ascii',0,2)!=='MZ')throw Error(`Invalid Windows executable: ${file}`);
+  const offset=pe.readUInt32LE(0x3c);
+  if(pe.toString('ascii',offset,offset+4)!=='PE\0\0' || pe.readUInt16LE(offset+24+68)!==2){
+    throw Error(`Windows binary does not use the silent GUI subsystem: ${file}`);
+  }
+}
+console.log('[JPano] Windows GUI binaries verified (no console subsystem).');
 // The private copy is output only in the explicit release folder, not under
 // the source checkout or client/static files.
 run(node,['client/scripts/tools/split-env.mjs',join(output,'env')]);

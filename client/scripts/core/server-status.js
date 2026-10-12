@@ -1,29 +1,32 @@
 (() => {
   "use strict";
-  // 'ready' deliberately means Go can use PostgreSQL for privileged operations.
-  // Supabase public read availability is independent and NEVER grants Admin rights.
+  // Management readiness requires trusted Go + PostgreSQL. Public database
+  // availability is independently verified using Supabase public-read RPCs.
+  // A public connection must NEVER unlock privileged admin actions.
   let online = null, ready = null, directPublic = false, aiOnline = false, aiConfigured = false;
   let databaseReason = "", databaseAdvice = "", checking = null, initialized = false;
   const locked = new Map();
   const selector = "[data-requires-server], #feedbackIdentityButton, #feedbackAuthClear, [data-feedback-provider], #contactGoogleButton, #contactSubmit, #feedbackSubmit, #endSessionButton, #confirmEndSession, #saveInformationButton, #confirmInformationSave, #addProjectButton, #editProjectPositionButton, [data-project-visible], [data-project-ping], [data-project-edit], [data-project-delete], [data-move-project], [data-refresh-view], .admin-body form button[type=submit], .access-body form button[type=submit], #saveProjectButton, #saveCertificateButton, #addCertificateButton, [data-certificate-edit], [data-certificate-delete], [data-certificate-visible], [data-certificate-pin], [data-contact-action], [data-feedback-action], [data-action]";
   let portal = null, activeIndicator = null, lastDetails = [];
 
+  function publicDatabaseOnline() { return directPublic === true || ready === true; }
   function level() {
-    const allFull = online === true && ready === true && aiOnline === true;
-    const anyUseful = online === true || ready === true || directPublic === true || aiOnline === true;
+    const allFull = online === true && publicDatabaseOnline() && aiOnline === true;
+    const anyUseful = online === true || publicDatabaseOnline() || aiOnline === true;
     return allFull ? "good" : anyUseful ? "warning" : "danger";
   }
   const statusLabel = state => state ? "Online" : "Unavailable";
   function detailLines() {
-    const db = ready === true ? "Management and published records are available"
-      : directPublic ? "Public portfolio records are available; management is temporarily unavailable"
-      : "Some data services are temporarily unavailable";
+    const db = directPublic && ready ? "Supabase public reads and Go management database are available"
+      : directPublic ? "Supabase public records are online; privileged management still requires Go"
+      : ready ? "Go management database is connected; direct Supabase public reads are not verified"
+      : "Public database access is not verified; cached published content may still display";
     const ai = aiOnline ? "Assistant answers are available"
       : aiConfigured ? "Assistant may respond with its built-in portfolio knowledge"
       : "Portfolio guidance remains available";
     return [
       { name: "Server", state: online === true, detail: online === true ? "Connected to website services" : "Some interactive features are temporarily unavailable" },
-      { name: "Database", state: ready === true, detail: db, pending: ready !== true && directPublic === true, label: ready !== true && directPublic === true ? "Limited" : undefined },
+      { name: "Database", state: publicDatabaseOnline(), detail: db, label: directPublic && !ready ? "Online (public)" : undefined },
       { name: "AI Assistant", state: aiOnline, detail: ai, label: aiConfigured && !aiOnline ? "Limited" : undefined, pending: aiConfigured && !aiOnline }
     ];
   }
@@ -103,15 +106,17 @@
   }
   function paint() {
     const serverOnline = online === true, databaseReady = ready === true;
+    const publicReady = publicDatabaseOnline();
     document.documentElement.dataset.serverStatus = serverOnline ? "online" : "offline";
     document.documentElement.dataset.serverReady = databaseReady ? "ready" : "not-ready";
+    document.documentElement.dataset.publicDatabase = publicReady ? "online" : "offline";
     document.documentElement.dataset.serviceHealth = level();
     lastDetails = detailLines();
     const summary = healthSummary();
     document.querySelectorAll("[data-backend-status]").forEach(node => {
       bindIndicator(node);
       node.dataset.state = level();
-      node.setAttribute("aria-label", `${summary}. Server: ${statusLabel(serverOnline)}. Database: ${databaseReady ? "Available" : directPublic ? "Limited" : "Unavailable"}. AI assistant: ${statusLabel(aiOnline)}. Focus for details.`);
+      node.setAttribute("aria-label", `${summary}. Server: ${statusLabel(serverOnline)}. Database: ${publicReady ? directPublic && !databaseReady ? "Online for public reads" : "Available" : "Unavailable"}. AI assistant: ${statusLabel(aiOnline)}. Focus for details.`);
     });
     paintPortal();
     document.querySelectorAll("[data-offline-notice]").forEach(node => {
@@ -168,9 +173,10 @@
         reason = go && !db ? data.database_reason : "";
         advice = go && !db ? data.database_advice : "";
       } catch { /* Go is optional for public browsing. */ }
-      if (!db && window.PublicStore?.refreshDirectPublic) {
-        // This validates authorized RPC access; a Supabase URL alone is not proof
-        // of a readable database. Do not equate this with Go Admin privileges.
+      if (window.PublicStore?.refreshDirectPublic) {
+        // Probe Supabase independently of Go, even when Go is healthy. A URL
+        // or publishable key alone is NOT evidence that the RPC is accessible.
+        // A successful RPC grants public READ visibility only, never Admin.
         try { direct = !!(await window.PublicStore.refreshDirectPublic()); } catch { direct = false; }
       }
       if (go) {
@@ -203,7 +209,7 @@
   }, true);
   window.ServerStatus = Object.freeze({
     get online() { return online; }, get ready() { return ready; },
-    get databaseOnline() { return ready === true || directPublic; }, get directPublic() { return directPublic; },
+    get databaseOnline() { return publicDatabaseOnline(); }, get directPublic() { return directPublic; },
     get aiOnline() { return aiOnline; }, get level() { return level(); },
     get databaseReason() { return databaseReason; }, get databaseAdvice() { return databaseAdvice; },
     check, paint,

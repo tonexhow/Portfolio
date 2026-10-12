@@ -14,14 +14,27 @@ jpano-portfolio/
 .DS_Store
 Thumbs.db
 
-# Private configuration
+# Source-only refactor
+JPano-Release/
+env/
+*.bak
+*.tmp
+server/.migration-backup/
+
+# Silent Windows runtime (do not upload logs or process metadata)
+logs.txt
+logs.previous.txt
+**/.jpano-api.pid
+
 .env
 **/.env
 **/.env.*
 !**/.env.example
 env/
-**/node_modules/
 JPano-Release/
+node_modules/
+**/dist/
+**/.runtime/
+logs.txt
 *.key
 *.pem
-

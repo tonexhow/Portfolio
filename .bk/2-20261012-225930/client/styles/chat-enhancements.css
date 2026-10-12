@@ -1,0 +1,540 @@
+/* Chat + Admin UI improvements, scoped to the original HTML/CSS/JS frontend. */
+:root{scrollbar-color:color-mix(in srgb,var(--accent) 54%,var(--line-strong)) transparent;scrollbar-width:thin}
+:where(body,section,main,dialog,aside,div,textarea)::-webkit-scrollbar{width:9px;height:9px}
+:where(body,section,main,dialog,aside,div,textarea)::-webkit-scrollbar-thumb{border:2px solid transparent;border-radius:999px;background:color-mix(in srgb,var(--accent) 50%,var(--line-strong));background-clip:padding-box}
+:where(body,section,main,dialog,aside,div,textarea)::-webkit-scrollbar-track{background:transparent}
+:where(button,a,input,textarea,summary,.chat-table tr):focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+
+/* The public assistant remains usable when the Go server is unreachable. */
+.live-chat-widget{z-index:1900}
+.live-chat-panel{width:min(550px,calc(100vw - 30px));height:min(760px,84dvh);grid-template-rows:auto auto minmax(0,1fr);border-radius:20px}
+.live-chat-head{min-height:67px;padding:12px 16px;gap:12px}
+.live-chat-head strong{font:750 1rem/1.15 var(--font-display)}
+.live-chat-head small{font-size:.69rem;margin-top:3px;display:block}
+.chat-head-actions{display:flex;gap:5px;align-items:center}
+.live-chat-head .chat-head-actions button{width:37px;height:37px;display:grid;place-items:center;border:1px solid var(--line);border-radius:10px}
+.chat-head-actions svg{width:18px;height:18px}
+.chat-mode-tabs{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin:11px 14px 7px;padding:5px;background:var(--surface-soft);border:1px solid var(--line);border-radius:13px}
+.chat-mode-tabs button{min-width:0;display:flex;justify-content:center;align-items:center;gap:9px;padding:10px;border:1px solid transparent;border-radius:10px;background:transparent;color:var(--text-soft);font:750 .78rem/1.2 var(--font-body);cursor:pointer;transition:background .17s,border-color .17s,color .17s,box-shadow .17s}
+.chat-mode-tabs button svg{width:19px;height:19px;flex:0 0 auto;stroke-linecap:round;stroke-linejoin:round}
+.chat-mode-tabs button.active{background:var(--surface);color:var(--accent-strong);border-color:var(--line);box-shadow:var(--shadow-sm)}
+.chat-mode-tabs button:hover:not(.active){background:color-mix(in srgb,var(--surface) 70%,transparent)}
+.chat-mode-pane{min-height:0;display:flex;flex-direction:column}
+.chat-mode-pane[hidden]{display:none}
+.chat-mode-pane .live-chat-messages{flex:1;min-height:0;padding:14px 16px;overscroll-behavior:contain;scrollbar-gutter:stable}
+.chat-mode-pane .live-chat-form{flex:0 0 auto;grid-template-columns:minmax(0,1fr) 43px;align-items:end;padding:11px 14px calc(12px + env(safe-area-inset-bottom,0px));gap:9px;background:var(--surface)}
+.chat-mode-pane .live-chat-form textarea{min-height:43px;max-height:130px;font-size:.79rem;line-height:1.45;padding:10px 12px}
+.chat-mode-pane .live-chat-form button{width:43px;height:43px}
+.chat-live-note{margin:0;padding:5px 17px 9px;color:var(--text-faint);font-size:.68rem;line-height:1.5}
+.chat-live-gate{margin:8px 15px 12px;padding:15px;border-radius:14px;border:1px solid var(--line);background:var(--surface-soft)}
+.chat-live-gate[hidden]{display:none}
+.chat-live-gate p{margin:0 0 12px;font-size:.73rem;line-height:1.6;color:var(--text-soft)}
+.chat-live-gate button{min-height:39px;width:100%;border:0;border-radius:10px;background:var(--accent);color:var(--accent-contrast);font-weight:800;cursor:pointer}
+.chat-mode-pane .chat-bubble{max-width:89%;width:fit-content;min-width:75px;display:flex;flex-direction:column;gap:5px;padding:11px 13px;border-radius:15px;font-size:.79rem;white-space:normal}
+.chat-bubble.bot,.chat-bubble.admin{align-self:flex-start;background:var(--surface-soft)}
+.chat-mode-pane .chat-bubble.visitor{align-self:flex-end;background:var(--accent);color:var(--accent-contrast)}
+.chat-bubble time{display:block!important;align-self:flex-end;flex-shrink:0;font:.56rem/1.1 var(--font-code);opacity:.65;margin:2px 0 0!important}
+
+/* One restrained content style for visitor, Admin, and eventual AI output. */
+.chat-message-markdown{min-width:0;overflow-wrap:anywhere;user-select:text;line-height:1.56;white-space:normal}
+.chat-message-markdown :where(h1,h2,h3,h4){font-family:var(--font-display);font-weight:800;letter-spacing:-.025em;line-height:1.3;margin:0 0 .45em}
+.chat-message-markdown h1{font-size:1.22em}.chat-message-markdown h2{font-size:1.13em}.chat-message-markdown h3,.chat-message-markdown h4{font-size:1.05em}
+.chat-message-markdown p{margin:0 0 .57em}.chat-message-markdown p:last-child{margin-bottom:0}
+.chat-message-markdown :where(ul,ol){padding-left:1.4em;margin:.34em 0 .7em}
+.chat-message-markdown li+li{margin-top:.27em}.chat-message-markdown li::marker{color:var(--accent-strong)}
+.chat-message-markdown blockquote{margin:.6em 0;padding:3px 10px;border-left:3px solid var(--accent);color:var(--text-soft)}
+.chat-message-markdown a{color:inherit;text-decoration:underline;text-underline-offset:3px;overflow-wrap:anywhere}
+.chat-message-markdown :not(pre)>code{font:600 .88em var(--font-code);background:color-mix(in srgb,var(--text) 7%,transparent);border-radius:4px;padding:1px 4px}
+.chat-message-markdown .chat-code{width:100%;max-width:100%;min-width:0;border:1px solid var(--line);border-radius:10px;margin:7px 0;overflow:hidden;background:color-mix(in srgb,var(--bg) 93%,var(--surface))}
+.chat-code-head{padding:6px 9px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:8px;color:var(--text-soft);font:600 .67rem var(--font-code)}
+.chat-code-head button{cursor:pointer;border:1px solid var(--line);background:var(--surface);color:var(--text);padding:4px 8px;border-radius:6px;font-size:.65rem}
+.chat-message-markdown pre{max-width:100%;overflow:auto;margin:0;padding:12px;font:.8em/1.5 var(--font-code);tab-size:2;white-space:pre}
+.chat-message-markdown pre code{font:inherit;white-space:pre}
+.chat-table-scroll{max-width:100%;overflow-x:auto;margin:9px 0;border-radius:9px;border:1px solid var(--line)}
+.chat-message-markdown table{border-collapse:collapse;width:max-content;min-width:100%;font-size:.88em}
+.chat-message-markdown :where(td,th){padding:8px 9px;border-bottom:1px solid var(--line);text-align:left}
+.chat-message-markdown th{background:var(--surface-soft);font-weight:800}
+.chat-message-markdown hr{border:0;border-top:1px solid var(--line);margin:12px 0}
+.chat-task{display:flex;align-items:center;gap:7px}.chat-task input{margin:0;pointer-events:none}
+
+/* Admin content must fill the viewport even when a view is empty. */
+.admin-body .management-main{box-sizing:border-box;display:flex;flex-direction:column;min-height:100dvh;height:auto}
+.admin-body .management-main > .admin-view.active{flex:0 0 auto}
+.admin-body .management-main > .management-shared-footer{flex:0 0 auto;margin-top:auto!important;max-width:none}
+.admin-body .management-main > .management-shared-footer .footer-layout{max-width:var(--admin-content-max)}
+
+/* Compact, scannable threads without horizontal overflow; metadata is collapsed. */
+#view-chats .chat-admin-layout{grid-template-columns:minmax(0,.95fr) minmax(340px,1.05fr);align-items:stretch;gap:15px}
+#view-chats .chat-list-panel{min-height:0;min-width:0}
+#view-chats .chat-list-panel .chat-table-shell{overflow-x:auto;overflow-y:auto;max-height:65dvh}
+#view-chats .chat-table{min-width:0;width:100%;table-layout:fixed}
+#view-chats .chat-table th,#view-chats .chat-table td{padding:12px 11px;max-width:none;overflow:hidden}
+#view-chats .chat-table th:nth-child(1){width:23%}
+#view-chats .chat-table th:nth-child(2){width:33%}
+#view-chats .chat-table th:nth-child(3){width:28%}
+#view-chats .chat-table th:nth-child(4){width:16%}
+#view-chats .chat-thread-cell{white-space:normal;overflow-wrap:anywhere;font-size:.67rem}
+#view-chats .chat-identity-cell{min-width:0;width:100%}
+#view-chats .chat-identity-cell>span:last-child{min-width:0}
+#view-chats .chat-last-message{min-width:0!important;width:100%;max-width:none!important;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-soft)}
+#view-chats .chat-updated{min-width:0;white-space:normal;font-size:.62rem;color:var(--text-faint)}
+#view-chats .chat-identity-avatar.placeholder svg{width:18px;height:18px}
+#view-chats .chat-identity-avatar.detail svg{width:23px;height:23px}
+#view-chats .chat-pagination{display:flex;align-items:center;justify-content:space-between;gap:9px}
+#view-chats .chat-pagination button{width:37px;height:37px;display:grid;place-items:center;padding:8px;flex:none}
+#view-chats .chat-pagination button svg{width:18px;height:18px}
+#view-chats .chat-conversation{height:clamp(500px,67dvh,810px);max-height:none;min-height:0;grid-template-rows:auto auto minmax(0,1fr) auto;overflow:hidden}
+#view-chats .chat-conversation-messages{display:flex;flex-direction:column;gap:10px;min-height:0;overflow-y:auto;padding:15px;scrollbar-gutter:stable}
+#view-chats .chat-conversation-head{min-height:76px;padding:14px 16px}
+#view-chats .chat-conversation-head .icon-button svg{width:18px;height:18px}
+#view-chats .chat-thread-details{border-bottom:1px solid var(--line);background:var(--surface)}
+#view-chats .chat-thread-details summary{min-height:35px;padding:8px 15px;display:flex;align-items:center;gap:7px;list-style:none;cursor:pointer;font:700 .67rem var(--font-body);color:var(--text-soft)}
+#view-chats .chat-thread-details summary::-webkit-details-marker{display:none}
+#view-chats .chat-thread-details summary svg{width:15px;height:15px;flex:none}
+#view-chats .chat-thread-details summary span{margin-left:auto;transition:transform .15s ease}
+#view-chats .chat-thread-details[open] summary span{transform:rotate(180deg)}
+#view-chats .chat-thread-meta{max-height:175px;overflow:auto;padding:10px 13px;border-top:1px solid var(--line);border-bottom:0}
+#view-chats .chat-thread-meta code{white-space:normal;overflow-wrap:anywhere}
+#view-chats .admin-chat-bubble{width:fit-content;max-width:88%;min-width:75px;padding:11px 13px;display:flex;flex-direction:column;gap:5px;border-radius:15px;font-size:.76rem;line-height:1.5;white-space:normal}
+#view-chats .admin-chat-bubble.admin{align-self:flex-end;background:var(--accent);color:var(--accent-contrast)}
+#view-chats .admin-chat-bubble.visitor{align-self:flex-start;background:var(--surface-soft)}
+#view-chats .admin-chat-bubble time{font:.55rem var(--font-code);opacity:.65;align-self:flex-end;margin-top:2px}
+#view-chats .chat-admin-form{background:var(--surface);padding:12px 14px;grid-template-columns:minmax(0,1fr) 68px;align-items:end;gap:9px}
+#view-chats .chat-admin-form textarea{min-height:42px;max-height:130px;padding:11px;font-size:.76rem}
+#view-chats .chat-admin-form button{min-height:42px;align-self:stretch}
+#view-chats .chat-load-older{align-self:center;padding:6px 12px;border:1px solid var(--line);background:var(--surface-soft);color:var(--text);border-radius:8px;cursor:pointer;font-size:.7rem}
+#view-chats .chat-load-older[hidden]{display:none}
+
+/* Constrain form dialogs to viewport. Heading and actions do not scroll away. */
+.admin-body .modal-backdrop{padding:18px;overflow:hidden}
+.admin-body .management-modal:not(.small){display:flex;flex-direction:column;overflow:hidden;max-height:calc(100dvh - 36px);padding:18px 18px 0}
+.admin-body .management-modal:not(.small) > .modal-heading{flex:0 0 auto;position:relative;top:auto;z-index:3;margin:0;padding:0 0 14px;background:var(--surface);border-bottom:1px solid var(--line)}
+.admin-body .management-modal:not(.small) > form{flex:1 1 auto;min-height:0;overflow-y:auto;scroll-padding-bottom:90px;display:block;padding:16px 4px 0;margin:0 -4px}
+.admin-body .project-modal:not(.small) > form{display:grid;align-content:start;gap:17px}
+.admin-body .management-modal:not(.small) form > .modal-actions{position:sticky!important;bottom:0!important;z-index:6;margin-top:22px!important;padding:14px 4px calc(14px + env(safe-area-inset-bottom,0px))!important;border-top:1px solid var(--line);background:var(--surface);box-shadow:0 -12px 25px -23px rgba(0,0,0,.65)}
+.admin-body .management-modal:not(.small) form > .modal-actions button{min-height:40px}
+
+/* Consistent toast and app tooltip treatments. Existing confirm dialogs are kept. */
+.toast{backdrop-filter:blur(10px)}
+[data-tooltip]{position:relative}
+[data-tooltip]:is(:hover,:focus-visible)::after{content:attr(data-tooltip);position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);width:max-content;max-width:min(260px,75vw);white-space:normal;text-align:center;padding:7px 9px;border-radius:8px;color:#f8fafc;background:#17212d;box-shadow:0 10px 25px rgba(0,0,0,.23);font:.65rem/1.4 var(--font-body);z-index:2800;pointer-events:none}
+
+/* Enhanced select control: native value and change events remain the source of truth. */
+.jp-select{position:relative;min-width:0;width:100%}
+.jp-select select{position:absolute!important;width:1px!important;height:1px!important;opacity:0!important;pointer-events:none!important;inset:auto!important}
+.jp-select-trigger{min-height:39px;width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 11px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--text);font:.72rem var(--font-body);cursor:pointer;text-align:left}
+.jp-select-trigger>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.jp-select-trigger svg{height:15px;width:15px;flex:none;stroke:currentColor;fill:none;stroke-width:1.8;transition:transform .15s}
+.jp-select-trigger[aria-expanded="true"] svg{transform:rotate(180deg)}
+.jp-select-menu{position:fixed;z-index:2700;display:grid;max-height:250px;min-width:130px;overflow-y:auto;padding:5px;background:var(--surface);border:1px solid var(--line-strong);border-radius:11px;box-shadow:var(--shadow-lg)}
+.jp-select-menu[hidden]{display:none}
+.jp-select-option{border:0;border-radius:7px;background:transparent;color:var(--text);text-align:left;min-height:34px;padding:7px 10px;font:.71rem var(--font-body);cursor:pointer}
+.jp-select-option:is(:hover,[aria-selected="true"],:focus-visible){background:var(--accent-soft);color:var(--accent-strong)}
+@media(max-width:1100px){
+  #view-chats .chat-admin-layout{grid-template-columns:minmax(0,1fr)}
+  #view-chats .chat-list-panel .chat-table-shell{max-height:380px}
+  #view-chats .chat-conversation{height:min(690px,72dvh)}
+}
+@media(max-width:700px){
+  #view-chats .chat-table th:nth-child(1),#view-chats .chat-table td:nth-child(1){display:none}
+  #view-chats .chat-table th:nth-child(2){width:42%}
+  #view-chats .chat-table th:nth-child(3){width:38%}
+  #view-chats .chat-table th:nth-child(4){width:20%}
+  #view-chats .chat-table th,#view-chats .chat-table td{padding:10px 7px}
+  #view-chats .chat-conversation{min-height:420px;height:60dvh}
+  .admin-body .modal-backdrop{padding:8px}
+  .admin-body .management-modal:not(.small){max-height:calc(100dvh - 16px);padding:13px 13px 0}
+}
+@media(max-width:620px){
+  .live-chat-panel{position:fixed!important;inset:0!important;width:100vw!important;height:100dvh!important;max-width:none;max-height:none;border:0;border-radius:0;transform:translateY(14px)!important;transform-origin:bottom center}
+  .live-chat-panel.is-open{transform:translateY(0)!important}
+  .live-chat-launcher.is-open{visibility:hidden}
+  .live-chat-head{padding:12px 14px 10px;min-height:64px;padding-top:calc(12px + env(safe-area-inset-top,0px))}
+  .chat-mode-tabs{margin:9px 13px 7px}
+  .chat-mode-tabs button{min-height:44px}
+  .chat-mode-tabs button span{display:none}
+  .chat-mode-tabs button svg{height:22px;width:22px}
+  .chat-mode-pane .live-chat-messages{padding:12px}
+  .chat-mode-pane .chat-bubble{max-width:93%}
+  #view-chats .chat-identity-cell strong{font-size:.61rem}
+}
+@media(prefers-reduced-motion:reduce){.chat-mode-tabs button,.jp-select-trigger svg,.live-chat-panel{transition:none!important}}
+.chat-confirm-dialog{width:min(420px,calc(100vw - 24px));max-width:100%;padding:23px;border:1px solid var(--line);border-radius:17px;background:var(--surface);color:var(--text);box-shadow:var(--shadow-lg)}
+.chat-confirm-dialog::backdrop{background:rgba(6,11,19,.62);backdrop-filter:blur(6px)}
+.chat-confirm-dialog h2{font:780 1.1rem var(--font-display);margin:8px 0}
+.chat-confirm-dialog p{color:var(--text-soft);font-size:.77rem;line-height:1.6}
+.chat-confirm-icon{display:grid;place-items:center;height:34px;width:34px;border-radius:10px;color:var(--danger);background:color-mix(in srgb,var(--danger) 12%,var(--surface));font-weight:900}
+.chat-confirm-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:20px}
+.chat-confirm-actions button{min-height:38px;padding:9px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface-soft);color:var(--text);font-weight:800;cursor:pointer}
+.chat-confirm-actions button.danger{background:var(--danger);border-color:var(--danger);color:white}
+@media(max-width:620px){html.chat-overlay-open{overflow:hidden;overscroll-behavior:none}}
+
+/* Accessible Markdown in contrasting green visitor bubbles. Embedded code owns
+   both its foreground and background rather than inheriting dark visitor text. */
+.chat-message-markdown .chat-code{color:var(--text)!important;background:var(--surface)!important;border-color:var(--line-strong)}
+.chat-message-markdown .chat-code-head{color:var(--text-soft)!important;background:var(--surface-soft)!important}
+.chat-message-markdown .chat-code pre,
+.chat-message-markdown .chat-code pre code{color:var(--text)!important;background:transparent!important;text-shadow:none!important;opacity:1!important}
+.chat-message-markdown .chat-code-head button{color:var(--text)!important;background:var(--surface)!important}
+.chat-message-markdown .chat-code ::selection{background:color-mix(in srgb,var(--accent) 37%,transparent);color:var(--text)}
+.chat-message-markdown .chat-table-scroll{color:var(--text);background:var(--surface)}
+.chat-message-markdown .chat-table-scroll :where(td,th){color:var(--text)}
+.chat-bubble.visitor .chat-message-markdown :not(pre)>code,
+.admin-chat-bubble.admin .chat-message-markdown :not(pre)>code{background:rgba(255,255,255,.2);color:inherit}
+.chat-message-markdown .chat-code-head button:focus-visible{outline-offset:-2px}
+
+/* Center the send-paper-plane glyph on both theme modes and both chat tabs. */
+.chat-mode-pane .live-chat-form button[type="submit"]{
+  display:grid!important;place-items:center!important;align-content:center!important;justify-content:center!important;
+  line-height:0!important;padding:0!important;text-align:center!important;
+}
+.chat-mode-pane .live-chat-form button[type="submit"] svg{display:block!important;width:21px!important;height:21px!important;margin:0!important;transform:none!important;flex:none!important}
+/* Autosizing stays anchored to the composer bottom; only three rows of text. */
+.chat-mode-pane .live-chat-form textarea,
+#view-chats .chat-admin-form textarea{resize:none!important;box-sizing:border-box;overflow-y:hidden;max-height:none!important;min-height:0!important;line-height:1.5!important}
+#view-chats .chat-admin-form textarea{align-self:end}
+
+/* Align unread badges with nav labels instead of pinning them to the icon's top. */
+.management-nav-item[data-admin-view="chats"] .nav-count-badge,
+.management-nav-item[data-admin-view="contacts"] .nav-count-badge{
+  top:50%!important;right:7px!important;transform:translateY(-50%)!important;
+  display:inline-flex;justify-content:center;align-items:center;line-height:1!important;
+}
+.management-nav-item .nav-count-badge[hidden]{display:none!important}
+.metric-card .metric-icon{display:grid;place-items:center}
+.metric-card .metric-icon svg{height:18px;width:18px;display:block}
+.activity-kind svg{height:16px;width:16px;fill:none;stroke:currentColor;stroke-width:1.8}
+.queue-arrow svg{height:15px;width:15px;display:block}
+
+/* Keep a real gap between the last content row and the footer. The footer is
+   pushed down when the page is short and follows content when it grows. */
+.admin-body .management-main{min-height:100dvh;display:flex;flex-direction:column;box-sizing:border-box}
+.admin-body .management-main>.admin-view.active{width:min(100%,var(--admin-content-max));flex:0 0 auto;padding-bottom:28px;box-sizing:border-box}
+.admin-body .management-main>.management-shared-footer{position:relative;clear:both;flex-shrink:0;margin-top:auto!important}
+.admin-body #view-overview .overview-layout{align-items:start;min-height:0}
+
+/* Smart toast placement: JS chooses a free corner based on visible overlays.
+   Never center over the message composer or a destructive confirmation. */
+#toastRegion{position:fixed;left:auto;right:16px;top:auto;bottom:16px;width:min(360px,calc(100vw - 32px));max-width:calc(100vw - 24px);z-index:3500;pointer-events:none}
+#toastRegion[data-placement="top-right"]{left:auto!important;right:16px!important;top:16px!important;bottom:auto!important}
+#toastRegion[data-placement="bottom-right"]{left:auto!important;right:16px!important;top:auto!important;bottom:16px!important}
+#toastRegion[data-placement="top-left"]{left:16px!important;right:auto!important;top:16px!important;bottom:auto!important}
+#toastRegion[data-placement="bottom-left"]{left:16px!important;right:auto!important;top:auto!important;bottom:16px!important}
+@media(max-width:500px){
+ #toastRegion{width:calc(100vw - 28px)!important;max-width:none!important}
+ #toastRegion[data-placement$="right"],#toastRegion[data-placement$="left"]{left:14px!important;right:14px!important}
+ #toastRegion[data-placement^="top"]{top:calc(14px + env(safe-area-inset-top,0px))!important}
+ #toastRegion[data-placement^="bottom"]{bottom:calc(14px + env(safe-area-inset-bottom,0px))!important}
+}
+
+/* Published portfolio records can be presented as compact, verified result
+   cards. Visitor input remains text-only and the model cannot author HTML. */
+.bot-project-results{display:grid;gap:7px;width:100%;margin-top:8px}
+.bot-project-result{display:grid;grid-template-columns:54px minmax(0,1fr);gap:10px;align-items:center;min-width:0;padding:7px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--text)!important;text-decoration:none!important;transition:border-color .15s,transform .15s}
+.bot-project-result:hover{border-color:var(--accent);transform:translateY(-1px)}
+.bot-project-result img{width:54px;height:45px;object-fit:cover;background:var(--surface-soft);border-radius:7px}
+.bot-project-result>span{min-width:0;display:grid;gap:3px}
+.bot-project-result strong{font-size:.73rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bot-project-result small{font-size:.62rem;color:var(--text-soft);line-height:1.35;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* Chat Markdown must remain legible on light, dark AND green visitor bubbles.
+   Normalize list layouts; the main site uses custom styles on generic lists. */
+.chat-mode-pane .chat-message-markdown,
+#view-chats .chat-message-markdown { min-width:0; width:100%; color:inherit; }
+.chat-mode-pane .chat-message-markdown :is(ul,ol),
+#view-chats .chat-message-markdown :is(ul,ol){
+  display:block!important; list-style-position:outside!important; padding-inline-start:1.45em!important;
+  margin:.55em 0 .8em!important; width:auto!important; max-width:100%!important; text-align:start!important;
+}
+.chat-mode-pane .chat-message-markdown ul,
+#view-chats .chat-message-markdown ul {list-style-type:disc!important}
+.chat-mode-pane .chat-message-markdown ol,
+#view-chats .chat-message-markdown ol {list-style-type:decimal!important}
+.chat-mode-pane .chat-message-markdown li,
+#view-chats .chat-message-markdown li {
+  display:list-item!important; list-style:inherit!important; position:static!important; min-width:0!important;
+  padding:0!important; margin:.2em 0!important; color:inherit!important; font-size:inherit!important;
+  text-align:start!important; line-height:1.55!important; white-space:normal!important; overflow-wrap:anywhere;
+}
+.chat-mode-pane .chat-message-markdown li::marker,
+#view-chats .chat-message-markdown li::marker{color:currentColor!important}
+.chat-mode-pane .chat-message-markdown li.chat-task,
+#view-chats .chat-message-markdown li.chat-task{display:flex!important;align-items:flex-start;gap:9px;list-style:none!important;margin-left:-1.3em!important}
+.chat-message-markdown .chat-task input[type="checkbox"]{
+  width:15px!important;height:15px!important;flex:none!important;margin:3px 0 0!important;
+  opacity:1!important;accent-color:var(--accent-strong);cursor:default;
+}
+.chat-message-markdown .chat-li-content{min-width:0;overflow-wrap:anywhere;flex:1}
+.chat-message-markdown li > :is(ul,ol){margin:.25em 0 .4em!important}
+.chat-message-markdown blockquote{display:block!important;max-width:100%;background:color-mix(in srgb,var(--surface) 70%,transparent);padding:9px 12px!important;border-left:3px solid var(--accent-strong);color:var(--text)!important;border-radius:0 8px 8px 0}
+.chat-message-markdown blockquote blockquote{margin:.45em 0!important}
+.chat-message-markdown blockquote :last-child{margin-bottom:0!important}
+.chat-bubble.visitor .chat-message-markdown blockquote,
+.admin-chat-bubble.admin .chat-message-markdown blockquote{
+ background:rgba(0,0,0,.14)!important;color:inherit!important;border-color:currentColor!important;
+}
+.chat-bubble.visitor .chat-message-markdown :is(ul,ol) li::marker,
+.admin-chat-bubble.admin .chat-message-markdown :is(ul,ol) li::marker {color:inherit!important}
+.chat-message-markdown .chat-code :is(pre,code),.chat-message-markdown .chat-code-head{color:var(--text)!important}
+.chat-mode-pane .chat-message-markdown .chat-table-scroll,
+#view-chats .chat-message-markdown .chat-table-scroll{max-width:100%;overflow-x:auto}
+.chat-mode-pane .chat-message-markdown .chat-table-scroll :is(th,td),
+#view-chats .chat-message-markdown .chat-table-scroll :is(th,td){color:var(--text)!important;white-space:normal;min-width:80px}
+/* Header actions cannot escape the chat surface or place tooltip above the viewport. */
+.live-chat-head{overflow:visible!important}
+.live-chat-head button{position:relative}
+#clearBotHistory{color:var(--danger)!important;background:color-mix(in srgb,var(--danger) 11%,var(--surface))!important}
+.live-chat-head [data-tooltip]::after{bottom:auto!important;top:calc(100% + 8px)!important;left:auto!important;right:0!important;transform:none!important}
+/* Stacked sign-in prompt must remain above the chat dock: no invisible chat overlay over identity. */
+html:has(#feedbackAuthModal:not([hidden])) .live-chat-widget{pointer-events:none}
+html:has(#feedbackAuthModal:not([hidden])) #feedbackAuthModal{pointer-events:auto}
+.feedback-auth-backdrop:not([hidden]){z-index:4000!important}
+
+/* Typed rich results from published records (not raw LLM HTML). */
+.bot-file-icon{display:grid;place-items:center;background:var(--accent-soft);color:var(--accent-strong);border-radius:7px;width:54px;height:45px;font:.68rem var(--font-code)}
+.bot-action-row{display:flex;flex-wrap:wrap;gap:7px;margin-top:9px;min-width:0}
+.bot-action-row button{cursor:pointer;border:1px solid var(--line-strong);border-radius:999px;background:var(--surface);color:var(--text);padding:7px 10px;font:700 .68rem/1.25 var(--font-body);max-width:100%}
+.bot-action-row button:hover,.bot-action-row button:focus-visible{border-color:var(--accent);color:var(--accent-strong)}
+.bot-intro-portrait{margin:8px 0 2px;max-width:170px;border-radius:12px;overflow:hidden;border:1px solid var(--line)}
+.bot-intro-portrait img{display:block;max-height:190px;width:100%;object-fit:cover}
+
+/* Typed rich results from published records (not raw LLM HTML). */
+.bot-file-icon{display:grid;place-items:center;background:var(--accent-soft);color:var(--accent-strong);border-radius:7px;width:54px;height:45px;font:.68rem var(--font-code)}
+.bot-action-row{display:flex;flex-wrap:wrap;gap:7px;margin-top:9px;min-width:0}
+.bot-action-row button{cursor:pointer;border:1px solid var(--line-strong);border-radius:999px;background:var(--surface);color:var(--text);padding:7px 10px;font:700 .68rem/1.25 var(--font-body);max-width:100%}
+.bot-action-row button:hover,.bot-action-row button:focus-visible{border-color:var(--accent);color:var(--accent-strong)}
+.bot-intro-portrait{margin:8px 0 2px;max-width:170px;border-radius:12px;overflow:hidden;border:1px solid var(--line)}
+.bot-intro-portrait img{display:block;max-height:190px;width:100%;object-fit:cover}
+
+/* v48 layout hardening: detached chat panel avoids transformed mobile parents. */
+body>#liveChatPanel.live-chat-panel{
+  position:fixed!important;inset:auto 22px 22px auto!important;z-index:3200!important;
+  width:min(740px,calc(100vw - 44px))!important;height:min(820px,calc(100dvh - 44px))!important;
+  max-width:none!important;max-height:none!important;
+  display:grid!important;grid-template-rows:auto auto minmax(0,1fr)!important;
+  box-sizing:border-box;overflow:hidden!important;border:1px solid var(--line);border-radius:22px;
+}
+body>#liveChatPanel[hidden]{display:none!important}
+body>#liveChatPanel .live-chat-head{padding:15px 20px!important;min-width:0;gap:18px}
+body>#liveChatPanel .chat-head-actions{padding-right:2px;gap:10px;flex:none}
+body>#liveChatPanel .chat-mode-tabs{margin:12px 19px 9px!important;min-width:0}
+body>#liveChatPanel .chat-mode-pane{min-width:0;min-height:0;overflow:hidden}
+body>#liveChatPanel .live-chat-messages{padding:16px 20px!important;scrollbar-gutter:stable both-edges;min-width:0}
+body>#liveChatPanel .chat-bubble{max-width:min(85%,630px);min-width:0;box-sizing:border-box}
+body>#liveChatPanel .live-chat-form{grid-template-columns:40px minmax(0,1fr) 46px!important;gap:10px;padding:12px 19px calc(13px + env(safe-area-inset-bottom,0px))!important;box-sizing:border-box}
+body>#liveChatPanel .live-chat-form button[type="submit"]{width:46px;height:46px;min-width:46px;display:grid;place-items:center;margin:0}
+body>#liveChatPanel .live-chat-form textarea{width:100%;min-width:0;align-self:end}
+body>#liveChatPanel .chat-attach-button{width:40px!important;height:46px!important;display:grid!important;place-items:center!important;align-self:end;padding:0!important;border-radius:11px;border:1px solid var(--line)!important;background:var(--surface-soft)!important;color:var(--text)!important;cursor:pointer}
+body>#liveChatPanel .chat-attach-button svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.8}
+body>#liveChatPanel .chat-attach-button:disabled{opacity:.5;cursor:wait}
+body>#liveChatPanel .chat-mode-tabs button{min-width:0;max-width:100%}
+body>#liveChatPanel #liveChatClose{font-size:0;display:grid;place-items:center}
+body>#liveChatPanel .live-chat-head [data-tooltip]::after{top:calc(100% + 8px)!important;bottom:auto!important;right:0!important;left:auto!important;transform:none!important;max-width:min(220px,55vw)}
+/* Keep message content both readable and within the bubble. */
+.chat-message-markdown{max-width:100%;min-width:0;overflow-wrap:anywhere;word-break:normal}
+.chat-message-markdown :is(h1,h2,h3,h4,h5,h6){color:inherit!important;overflow-wrap:anywhere}
+.chat-message-markdown h5{font-size:.93em}.chat-message-markdown h6{font-size:.86em}
+.chat-message-markdown .chat-task{display:list-item!important;list-style:none!important;margin-left:-1.25em!important}
+.chat-message-markdown .chat-task-row{display:inline-flex!important;align-items:flex-start;gap:9px;max-width:100%;vertical-align:top}
+.chat-message-markdown .chat-task input{margin:4px 0 0!important}
+.chat-message-markdown li>ul,.chat-message-markdown li>ol{display:block!important;list-style-position:outside!important;clear:both}
+.chat-message-markdown .chat-md-image{display:block;max-width:100%;max-height:260px;object-fit:contain;margin:8px 0;border-radius:9px}
+.chat-message-markdown mark{background:#fff3a1;color:#272727;padding:0 .13em;border-radius:3px}
+.chat-message-markdown .chat-code-actions{display:flex;gap:5px;align-items:center}
+.chat-message-markdown .chat-code{overflow:hidden!important;max-width:100%;min-width:0}
+.chat-message-markdown .chat-code-head{background:color-mix(in srgb,var(--surface-soft) 82%,var(--bg));gap:12px}
+.chat-message-markdown .chat-code :is(pre,code){overflow:auto;white-space:pre!important;color:var(--text)!important}
+.chat-message-markdown .chat-table-scroll{max-width:100%;overflow-x:auto}
+.chat-message-markdown .chat-footnotes{font-size:.85em;overflow-wrap:anywhere}
+.chat-message-markdown a{overflow-wrap:anywhere}
+.chat-preview-dialog{position:fixed;inset:0;margin:auto;width:min(1080px,calc(100vw - 36px));height:min(780px,calc(100dvh - 36px));max-width:none;max-height:none;padding:0;border:1px solid var(--line);border-radius:18px;background:var(--surface);color:var(--text);box-shadow:0 30px 90px #0009;overflow:hidden}
+.chat-preview-dialog::backdrop{background:rgba(5,11,20,.82);backdrop-filter:blur(5px)}
+.chat-preview-dialog header{min-height:60px;display:flex;align-items:center;gap:12px;justify-content:space-between;padding:12px 17px;border-bottom:1px solid var(--line)}
+.chat-preview-dialog header strong{font-size:.86rem}.chat-preview-dialog header span{font-size:.67rem;color:var(--text-soft);margin-right:auto}
+.chat-preview-dialog header button{border:1px solid var(--line);border-radius:9px;padding:8px;background:var(--surface-soft);color:var(--text);cursor:pointer}
+.chat-preview-dialog .chat-preview-frame{height:calc(100% - 108px);background:white}.chat-preview-dialog iframe{width:100%;height:100%;border:0;background:#fff}
+.chat-preview-dialog footer{padding:12px 17px;font-size:.65rem;color:var(--text-soft);border-top:1px solid var(--line)}
+/* Tooltips avoid the nearest viewport edges instead of clipping through them. */
+[data-tooltip][data-tip-side="bottom"]:is(:hover,:focus-visible)::after{bottom:auto;top:calc(100% + 9px)}
+[data-tooltip][data-tip-side="top"]:is(:hover,:focus-visible)::after{top:auto;bottom:calc(100% + 9px)}
+[data-tooltip][data-tip-align="start"]:is(:hover,:focus-visible)::after{left:0;right:auto;transform:none}
+[data-tooltip][data-tip-align="end"]:is(:hover,:focus-visible)::after{left:auto;right:0;transform:none}
+.backend-tooltip{right:0;left:auto;top:calc(100% + 9px);white-space:normal;min-width:140px;max-width:210px;text-align:center}
+@media(max-width:767px){
+  body>#liveChatPanel.live-chat-panel{position:fixed!important;inset:0!important;left:0!important;top:0!important;right:0!important;bottom:0!important;
+    width:100vw!important;height:100dvh!important;min-height:0;max-height:none!important;max-width:none!important;border:0!important;border-radius:0!important;transform-origin:bottom center}
+  body>#liveChatPanel .live-chat-head{padding:calc(11px + env(safe-area-inset-top,0px)) 16px 12px!important}
+  body>#liveChatPanel .chat-mode-tabs{margin:9px 15px 6px!important}
+  body>#liveChatPanel .live-chat-messages{padding:13px 14px!important}
+  body>#liveChatPanel .chat-bubble{max-width:92%!important}
+  body>#liveChatPanel .live-chat-form{grid-template-columns:36px minmax(0,1fr) 44px!important;gap:8px;padding:9px 12px calc(10px + env(safe-area-inset-bottom,0px))!important}
+  body>#liveChatPanel .chat-attach-button{width:36px!important;height:44px!important}
+  body>#liveChatPanel .live-chat-form button[type="submit"]{width:44px;height:44px;min-width:44px}
+  .chat-preview-dialog{inset:0;width:100vw;height:100dvh;border:0;border-radius:0}
+  .chat-preview-dialog header{flex-wrap:wrap}.chat-preview-dialog header span{font-size:.57rem}
+}
+
+/* A typed project offer has a clear pending / approved state, never a payment
+ * screenshot interpreted as verified proof. */
+.chat-project-offer-card{align-self:flex-start;max-width:min(88%,440px);min-width:210px;margin:5px 0 8px}
+.chat-project-offer-card button{display:grid;gap:5px;width:100%;text-align:left;background:var(--surface-soft);color:var(--text);padding:15px;border:1px solid var(--line-strong);border-radius:15px;cursor:pointer;box-shadow:var(--shadow-sm)}
+.chat-project-offer-card button:hover{border-color:var(--accent)}
+.chat-project-offer-card .offer-card-kicker{text-transform:uppercase;letter-spacing:.07em;font-size:.65rem;color:var(--accent-strong);font-weight:800}
+.chat-project-offer-card strong{font-size:.88rem;overflow-wrap:anywhere}
+.chat-project-offer-card span:not(.offer-card-kicker){font-size:.82rem;font-weight:800}
+.chat-project-offer-card small{font-size:.7rem;font-weight:700;color:var(--text-soft)}
+.chat-project-offer-card small[data-state="payment_approved"],.chat-project-offer-card small[data-state="paid"]{color:var(--accent-strong)}
+.project-offer-modal{position:fixed;inset:0;margin:auto;width:min(530px,calc(100vw - 25px));max-width:none;max-height:min(780px,calc(100dvh - 24px));padding:0;border:1px solid var(--line);border-radius:17px;background:var(--surface);color:var(--text);box-shadow:0 25px 100px #0008;overflow:hidden}
+.project-offer-modal::backdrop{background:rgba(2,7,18,.75);backdrop-filter:blur(6px)}
+.project-offer-modal .offer-modal-head,.project-offer-modal .admin-offer-modal header,.project-offer-modal header{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:17px 20px;border-bottom:1px solid var(--line)}
+.project-offer-modal .offer-modal-head div,.project-offer-modal header div{min-width:0}
+.project-offer-modal .offer-modal-head small,.project-offer-modal header small{font-size:.64rem;font-weight:800;text-transform:uppercase;color:var(--accent-strong)}
+.project-offer-modal h2{font-size:1.15rem;line-height:1.2;margin:5px 0 0}
+.project-offer-modal .offer-modal-head button,.project-offer-modal header button{border:1px solid var(--line);border-radius:9px;background:var(--surface-soft);color:var(--text);padding:9px 12px;cursor:pointer}
+.project-offer-modal .offer-modal-scroll{padding:18px 20px;overflow:auto;max-height:calc(100dvh - 180px);display:grid;gap:16px}
+.project-offer-modal .offer-modal-scroll p{font-size:.81rem;line-height:1.6;color:var(--text-soft);margin:0;white-space:pre-wrap;overflow-wrap:anywhere}
+.project-offer-modal .offer-metrics{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.project-offer-modal .offer-metrics div{padding:13px;border:1px solid var(--line);background:var(--surface-soft);border-radius:11px;display:grid;gap:6px}
+.project-offer-modal .offer-metrics small{font-size:.61rem;color:var(--text-soft)}
+.project-offer-modal .offer-metrics strong{font-size:.95rem}
+.project-offer-modal .offer-payment-status{font-weight:800;color:var(--accent-strong)!important}
+.project-offer-modal label{display:grid;gap:6px;font-size:.73rem;font-weight:750}
+.project-offer-modal input,.project-offer-modal textarea{box-sizing:border-box;display:block;width:100%;max-width:100%;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--surface-soft);color:var(--text);font:inherit}
+.project-offer-modal form{display:grid;gap:9px}
+.project-offer-modal form>small,.project-offer-modal #offerCheckout small{font-size:.66rem;color:var(--text-soft)}
+.project-offer-modal #offerPayButton,.project-offer-modal #sendAcceptProject{background:var(--accent);color:var(--accent-contrast);padding:12px 14px;border:0;border-radius:10px;font-weight:850;cursor:pointer}
+.project-offer-modal button:disabled{opacity:.55;cursor:wait}
+.project-offer-modal #offerCheckout{display:grid;justify-items:center;gap:10px;padding:13px 10px;border:1px solid var(--line);border-radius:12px}
+.project-offer-modal #offerCheckout[hidden],.project-offer-modal #projectOfferPayForm[hidden]{display:none!important}
+.project-offer-modal .offer-qr{background:white;padding:10px;border-radius:12px}
+.project-offer-modal .offer-qr svg{display:block;max-width:100%;height:auto}
+.project-offer-modal #offerCheckoutLink{display:block;padding:10px 14px;border-radius:9px;text-decoration:none;font-size:.8rem;font-weight:850;background:var(--accent);color:var(--accent-contrast)}
+.project-offer-modal .offer-fields{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.project-offer-modal .offer-note{font-size:.7rem!important}
+.admin-offer-modal form{display:block}.admin-offer-modal .offer-modal-scroll{gap:15px}
+.admin-offer-modal footer{border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:10px;padding:14px 20px}
+.admin-offer-modal footer button{border-radius:9px;padding:11px 15px;border:1px solid var(--line);cursor:pointer;background:var(--surface-soft);color:var(--text);font-weight:800}
+@media(max-width:600px){.project-offer-modal{width:100vw;max-width:none;max-height:100dvh;border:0;border-radius:0}.project-offer-modal .offer-modal-scroll{max-height:calc(100dvh - 160px)}.project-offer-modal .offer-fields{grid-template-columns:1fr}}
+
+/* Consistent high contrast on both bright and standard green accent backgrounds.
+   The main theme's button contrast token is tuned for buttons, but 15 px long
+   Markdown needs a stronger 4.5:1 target on #16a34a and #4ade80. */
+body>#liveChatPanel .chat-bubble.visitor,
+#view-chats .admin-chat-bubble.admin{color:#06180e!important}
+body>#liveChatPanel .chat-bubble.visitor .chat-message-markdown :is(p,h1,h2,h3,h4,h5,h6,li,blockquote,strong,em,del,small),
+#view-chats .admin-chat-bubble.admin .chat-message-markdown :is(p,h1,h2,h3,h4,h5,h6,li,blockquote,strong,em,del,small){color:inherit!important}
+body>#liveChatPanel .chat-bubble.visitor .chat-message-markdown blockquote,
+#view-chats .admin-chat-bubble.admin .chat-message-markdown blockquote{color:#06180e!important;border-color:rgba(0,0,0,.4)!important}
+body>#liveChatPanel .chat-bubble.visitor .chat-message-markdown li::marker,
+#view-chats .admin-chat-bubble.admin .chat-message-markdown li::marker{color:#06180e!important}
+
+/* Tooltip portal lives outside scrolling cards, and clamps to viewport bounds. */
+[data-tooltip]:is(:hover,:focus-visible)::after{display:none!important}
+.adaptive-viewport-tooltip{position:fixed;z-index:99999;max-width:min(260px,calc(100vw - 20px));width:max-content;
+ padding:8px 11px;border:1px solid #3a4655;border-radius:9px;background:#182330;color:#fff;
+ font:600 .7rem/1.4 var(--font-body);box-shadow:0 14px 26px #0005;pointer-events:none;text-align:center;
+ overflow-wrap:anywhere;white-space:normal}
+
+/* Backend status participates in the same viewport-clamped tooltip portal. */
+.backend-status .backend-tooltip{display:none!important}
+
+/* Trusted introduction card: published portrait and factual metadata. */
+.chat-bubble.bot .bot-intro-card{display:grid;grid-template-columns:minmax(80px,120px) minmax(0,1fr);gap:14px;margin:14px 0 8px;padding:12px;
+  border:1px solid var(--line-strong);border-radius:14px;background:var(--surface-soft);color:var(--text);max-width:100%;min-width:0}
+.chat-bubble.bot .bot-intro-card>img{width:100%;height:120px;object-fit:cover;object-position:center 25%;border-radius:10px}
+.chat-bubble.bot .bot-intro-card:not(:has(img)){grid-template-columns:1fr}
+.chat-bubble.bot .bot-intro-card-text{display:grid;align-content:center;gap:6px;min-width:0;overflow-wrap:anywhere}
+.chat-bubble.bot .bot-intro-card-text small{font-weight:800;color:var(--accent-strong);letter-spacing:.04em;text-transform:uppercase;font-size:.68rem}
+.chat-bubble.bot .bot-intro-card-text strong{color:var(--text);font-size:1.05rem;line-height:1.25}
+.chat-bubble.bot .bot-intro-card-text span{color:var(--text-soft);font-size:.76rem;line-height:1.5}
+.chat-bubble.bot .bot-intro-card-text em{font-size:.69rem;font-style:normal;font-weight:750;color:var(--accent-strong)}
+@media(max-width:420px){.chat-bubble.bot .bot-intro-card{grid-template-columns:76px minmax(0,1fr);gap:10px;padding:9px}
+  .chat-bubble.bot .bot-intro-card>img{height:96px}}
+/* A rejected link is a clear, inert label rather than raw Markdown syntax. */
+.chat-message-markdown .chat-link-blocked{display:inline-flex;align-items:baseline;gap:5px;text-decoration:line-through;text-decoration-thickness:1px;opacity:.9;overflow-wrap:anywhere}
+.chat-message-markdown .chat-link-blocked small{font-size:.72em;font-weight:650;text-decoration:none}
+
+/* October 2026 · Payment proposals, keyboard command discovery and safe media. */
+.chat-project-offer-card{width:min(100%,440px);max-width:min(94%,440px);margin-block:12px}
+.chat-project-offer-card button{gap:10px!important;padding:17px!important;background:linear-gradient(145deg,var(--surface),var(--surface-soft))!important;box-shadow:0 13px 35px #00000016!important;border-radius:18px!important;transition:transform .15s,border-color .15s,box-shadow .15s}
+.chat-project-offer-card button:hover,.chat-project-offer-card button:focus-visible{transform:translateY(-2px);border-color:var(--accent)!important;box-shadow:0 16px 40px #0000002b!important;outline-offset:3px}
+.offer-card-topline{display:flex!important;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:9px}
+.chat-project-offer-card .offer-card-kicker,.admin-project-offer-card .offer-card-topline small{font-size:.61rem;font-weight:900;letter-spacing:.09em;text-transform:uppercase;color:var(--text-faint)}
+.offer-card-status{display:inline-flex;align-items:center;gap:5px;padding:5px 9px;border:1px solid var(--line);border-radius:999px;font-size:.64rem!important;font-weight:850!important;background:var(--surface-soft);color:var(--text-soft)}
+.offer-card-status[data-state="payment_approved"]{border-color:#f59e0b77;background:#f59e0b17;color:#b97703}
+.offer-card-status[data-state="paid"]{border-color:#16a34a88;background:#22c55e18;color:var(--accent-strong)}
+.offer-card-status[data-state="cancelled"]{border-color:#dc262677;color:#b91c1c}
+.chat-project-offer-card .offer-card-title{font-size:1rem;line-height:1.3;font-weight:850}
+.chat-project-offer-card .offer-card-description{font-size:.73rem!important;line-height:1.55;color:var(--text-soft);overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;line-clamp:2;-webkit-line-clamp:2}
+.offer-card-numbers{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
+.chat-project-offer-card .offer-card-numbers>span{font-size:1.22rem!important;letter-spacing:-.03em;font-weight:900!important}
+.chat-project-offer-card .offer-card-numbers small{font-weight:750;color:var(--text-soft)}
+.offer-card-track,.offer-progress-track{display:block!important;width:100%;height:9px;border-radius:999px;background:color-mix(in srgb,var(--line) 90%,transparent);overflow:hidden}
+.offer-card-track>* ,.offer-progress-track>*{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#15984e,#5dde9a);transition:width .35s ease}
+.chat-project-offer-card .offer-card-foot{font-size:.67rem!important;color:var(--text-soft);font-weight:750!important}
+.offer-payment-progress{display:grid;gap:6px}
+.offer-payment-progress p{margin:0;font-size:.68rem!important}
+.chat-command-container{position:relative;isolation:isolate}
+.slash-picker{position:absolute;bottom:calc(100% + 6px);left:8px;right:8px;z-index:320;display:grid;max-height:min(290px,45vh);overflow:auto;gap:3px;padding:8px;border:1px solid var(--line-strong);border-radius:14px;background:var(--surface);box-shadow:0 15px 48px #0004;min-width:min(260px,calc(100vw - 36px))}
+.slash-picker[hidden]{display:none!important}
+.slash-picker button{height:auto!important;min-height:43px!important;display:flex!important;justify-content:space-between;align-items:center;gap:12px;text-align:left;background:transparent!important;color:var(--text)!important;border-radius:9px!important;padding:9px 12px!important;border:0!important;box-shadow:none!important}
+.slash-picker button:hover,.slash-picker button.selected{background:var(--surface-soft)!important;outline:2px solid color-mix(in srgb,var(--accent) 20%,transparent)}
+.slash-picker strong{font-size:.78rem;white-space:nowrap;font-family:var(--font-code,monospace)}
+.slash-picker small{font-size:.65rem!important;opacity:.77;text-align:right;line-height:1.35}
+.chat-drop-ready{outline:2px dashed var(--accent)!important;outline-offset:-5px;background:color-mix(in srgb,var(--accent) 12%,var(--surface))!important;border-radius:12px}
+.chat-admin-image{margin:6px 0;display:grid;gap:7px;max-width:300px}
+.chat-admin-image img{display:block;max-width:100%;max-height:260px;object-fit:contain;border-radius:11px;background:#0001;min-width:80px}
+.chat-admin-image img[hidden]{display:none}
+.chat-admin-image a{font-size:.65rem;font-weight:800;overflow-wrap:anywhere;color:inherit!important;text-decoration:underline!important}
+#view-chats .chat-admin-form{grid-template-columns:40px minmax(0,1fr) 68px}
+#view-chats .chat-admin-attach{padding:0!important;display:grid!important;place-items:center;background:var(--surface-soft)!important;color:var(--text)!important;border:1px solid var(--line)!important;font-size:1.25rem}
+.admin-project-offer-card{align-self:stretch;max-width:420px;display:grid;gap:10px;padding:16px;border:1px solid var(--line-strong);border-radius:16px;background:linear-gradient(140deg,var(--surface),var(--surface-soft));box-shadow:var(--shadow-sm)}
+.admin-project-offer-card>strong{font-size:.91rem;line-height:1.35}
+.admin-project-offer-card>p{font-size:.7rem;line-height:1.5;color:var(--text-soft);overflow-wrap:anywhere;margin:0}
+.admin-offer-stats{font-size:.71rem;font-weight:750;line-height:1.65}
+.admin-project-offer-card>button{justify-self:start;border-radius:8px;border:1px solid var(--line);padding:8px 12px;background:var(--surface-soft);color:var(--text);font-weight:750;font-size:.72rem;cursor:pointer}
+.ai-contact-disclosure{font-size:.67rem;line-height:1.55;color:var(--text-faint);padding:0 2px;margin:8px 0 12px}
+@media(max-width:440px){.slash-picker button{align-items:start;flex-direction:column;gap:2px}.slash-picker small{text-align:left}.chat-project-offer-card .offer-card-numbers>span{font-size:1.05rem!important}.offer-card-status{font-size:.56rem!important}}
+
+/* Final: unobtrusive one-at-a-time Tonex response state */
+.tonex-processing{display:flex;align-items:center;gap:10px;width:max-content;max-width:95%;padding:12px 16px;background:var(--surface-soft,var(--surface));border:1px solid var(--line);border-radius:16px;color:var(--text-soft);font-size:.9rem;box-sizing:border-box;margin:10px 0}
+.tonex-processing-dot,.offer-live-dot{width:9px;height:9px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 0 color-mix(in srgb,var(--accent) 24%,transparent);animation:jpano-live-pulse 1.5s ease-out infinite;flex:none}
+@keyframes jpano-live-pulse{50%{box-shadow:0 0 0 7px transparent;opacity:.67}}
+.offer-live-status{display:flex;gap:10px;align-items:center;color:var(--text-soft);font-size:.78rem;margin:12px 0;line-height:1.5}
+@media(prefers-reduced-motion:reduce){.tonex-processing-dot,.offer-live-dot{animation:none}}
+
+/* Release final pass: identical attach / input / send heights for one-row
+   composers; multiline input expands upward without shifting the other two. */
+body>#liveChatPanel .live-chat-form{
+  --chat-control-height:48px;
+  grid-template-columns:var(--chat-control-height) minmax(0,1fr) var(--chat-control-height)!important;
+  align-items:end!important;
+  column-gap:10px!important;
+}
+body>#liveChatPanel .live-chat-form :is(.chat-attach-button,button[type="submit"]){
+  box-sizing:border-box!important;
+  width:var(--chat-control-height)!important;
+  min-width:var(--chat-control-height)!important;
+  height:var(--chat-control-height)!important;
+  min-height:var(--chat-control-height)!important;
+  align-self:end!important;
+  margin:0!important;
+  padding:0!important;
+  display:grid!important;
+  place-items:center!important;
+}
+body>#liveChatPanel .live-chat-form textarea{
+  box-sizing:border-box!important;
+  display:block!important;
+  min-height:var(--chat-control-height)!important;
+  align-self:end!important;
+  margin:0!important;
+  padding:11px 14px!important;
+}
+@media(max-width:480px){
+  body>#liveChatPanel .live-chat-form{
+    --chat-control-height:44px;
+    column-gap:8px!important;
+  }
+  body>#liveChatPanel .live-chat-form textarea{padding:9px 12px!important}
+}

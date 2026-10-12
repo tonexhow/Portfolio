@@ -20,7 +20,7 @@ test('hidden /ai is not exposed in slash lists, while /getaichat is available',(
  assert.equal(parseQuickCommand('/ai','visitor'),null);
 });
 test('payment status depends on server verification with background retry and WebSocket',()=>{
- const server=read('server/payment_reconcile.go');
+ const server=read('server/internal/application/payment_reconcile.go');
  assert.match(server,/func \(a \*app\) reconcilePendingPayments/);
  assert.match(server,/a\.refreshCheckoutStatus\(cycle, id\)/);
  assert.match(server,/a\.commitConfirmedCheckout\(ctx, session\)/);
@@ -34,7 +34,7 @@ test('payment status depends on server verification with background retry and We
  assert.doesNotMatch(admin,/Verify with PayMongo/);
 });
 test('Tonex offers cards based on visitor request only, not model answer',()=>{
- const go=read('server/ai.go');
+ const go=read('server/internal/application/ai.go');
  assert.match(go,/func selectPublishedCards\(s content\.Snapshot, text, _ string\)/);
  assert.match(go,/func askingForPrice/);
  assert.match(go,/human Admin-approved estimate|Admin to review and price/i);
@@ -46,11 +46,11 @@ test('Tonex offers cards based on visitor request only, not model answer',()=>{
  assert.match(js,/botBusy=true/);
 });
 test('AI handoff is confirmed, persisted and Admin-only diagnostics are protected',()=>{
- const server=read('server/chat.go');
+ const server=read('server/internal/application/chat.go');
  assert.match(server,/func \(a \*app\) publicChatHandoff/);
  assert.match(server,/!in\.Confirmed/);
  assert.match(server,/a\.saveChatMessage\(thread, "visitor"/);
- const routes=read('server/main.go');
+ const routes=read('server/internal/application/routes.go');
  assert.match(routes,/POST \/api\/public\/chat\/handoff", a\.publicChatHandoff/);
  assert.match(routes,/POST \/api\/admin\/ai\/health", a\.requireAdmin\(a\.adminAIHealth\)/);
 });
@@ -62,15 +62,15 @@ test('AI provider control uses SVG icons and transactional filtering is segmente
  assert.match(ai,/iconAction\('copy'/);
  const html=read('client/htmls/admin.html');
  for(const label of ['Active','Archived','All'])assert.match(html,new RegExp('>'+label+'<'));
- assert.match(read('server/transactions.go'),/archived_at IS NULL/);
+ assert.match(read('server/internal/application/transactions.go'),/archived_at IS NULL/);
 });
 test('greetings are multilingual with minute rotation and Server diagnostics are opt-in',()=>{
  const data=JSON.parse(read('client/assets/data/public-snapshot.json'));
  assert.ok(data.information.greeting.rotation_languages.length>=5);
  assert.ok(Object.keys(data.information.greeting.translations).length>=5);
  assert.match(read('client/scripts/pages/index/index.js'),/renderGreeting\(personal, true\), 60000/);
- const network=read('server/network_diagnostics.go');
+ const network=read('server/internal/application/network_diagnostics.go');
  assert.match(network,/ipinfo\.io\/json/);
  assert.match(network,/https:\/\/speed\.cloudflare\.com/);
- assert.match(read('server/main.go'),/POST \/api\/admin\/server\/network-check", a\.requireAdmin/);
+ assert.match(read('server/internal/application/routes.go'),/POST \/api\/admin\/server\/network-check", a\.requireAdmin/);
 });

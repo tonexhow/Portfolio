@@ -39,24 +39,24 @@ test('Admin nav follows requested order',async()=>{
   'overview','dashboard','chats','transactions','projects','certificates','career','feedbacks','contacts','artificial-intelligence','database','server']);
 });
 test('private data inspector routes and migration are protected',async()=>{
- const routes=await read('server/main.go');
+ const routes=await read('server/internal/application/routes.go');
  assert.match(routes,/\/api\/admin\/database\/tables\/\{schema\}\/\{table\}\/rows", a\.requireAdmin/);
  assert.match(routes,/POST \/api\/admin\/chat\/images", a\.requireAdmin/);
- const rows=await read('server/database_rows.go');
+ const rows=await read('server/internal/application/database_rows.go');
  assert.match(rows,/safeTableName/);assert.match(rows,/redactDatabaseColumn/);
  assert.match(rows,/limit = 20/);assert.match(rows,/ORDER BY ctid/);
- const media=await read('server/chat_images.go');
+ const media=await read('server/internal/application/chat_images.go');
  assert.match(media,/a\.currentChatThread\(r\)/);
  assert.match(media,/image\/jpeg/);assert.match(media,/private, no-store/);
  const schema=await read('database/schema.sql');assert.match(schema,/CREATE TABLE IF NOT EXISTS chat_images/);
 });
 test('Live mode remains explicit and AI keys stay server encrypted',async()=>{
- const pay=await read('server/project_offers.go');
+ const pay=await read('server/internal/application/project_offers.go');
  assert.match(pay,/PAYMONGO_ALLOW_LIVE/);
  assert.match(pay,/Live checkout is currently disabled/);
- const ai=await read('server/ai_gateway.go');
+ const ai=await read('server/internal/application/ai_gateway.go');
  assert.match(ai,/encryption_state/);assert.match(ai,/rows\.Err\(\)/);
- const env=await read('.env');
+ const env=await read('.env.example');
  // A developer's untracked .env can legitimately contain credentials.
  // The release checks must prevent those values from reaching client/dist,
  // rather than requiring credentials to be erased during local compilation.

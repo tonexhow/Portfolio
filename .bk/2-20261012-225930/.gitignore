@@ -1,0 +1,27 @@
+# Private application credentials: never commit or deploy to static hosting
+.env
+**/.env
+env/server/
+
+# Built artifacts and runtime data
+client/htmls/vercel/dist/
+**/node_modules/
+server/.runtime/
+jpano-portfolio/
+*.exe
+*.log
+*.zip
+.DS_Store
+Thumbs.db
+
+# Private configuration
+.env
+**/.env
+**/.env.*
+!**/.env.example
+env/
+**/node_modules/
+JPano-Release/
+*.key
+*.pem
+

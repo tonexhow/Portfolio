@@ -36,10 +36,10 @@ test('text attachment parser handles common files locally with size and type lim
   await assert.rejects(extractAttachmentText({name:'too-big.txt',size:5*1024*1024}),/4 MB/);
 });
 test('payment and AI route wiring preserves private scope and signed webhook',()=>{
-  const routes=source('server/main.go');
-  const payments=source('server/project_offers.go');
-  const reconciliation=source('server/payment_reconcile.go');
-  const ai=source('server/ai_gateway.go');
+  const routes=source('server/internal/application/routes.go');
+  const payments=source('server/internal/application/project_offers.go');
+  const reconciliation=source('server/internal/application/payment_reconcile.go');
+  const ai=source('server/internal/application/ai_gateway.go');
   const schema=source('database/schema.sql');
   for(const route of ['/api/admin/transactions','/api/admin/ai/providers','/api/admin/ai/reply-drafts']){
     const line=routes.split('\n').find(l=>l.includes(route));
@@ -56,7 +56,7 @@ test('payment and AI route wiring preserves private scope and signed webhook',()
 test('production client output excludes private service secrets even with configured local env',()=>{
   // The private, gitignored .env is permitted to have configured secrets.
   // Every build must instead scan the actual public client output for leaks.
-  const env=source('.env');
+  const env=source('.env.example');
   assert.match(env,/^PAYMONGO_ALLOW_LIVE=(?:true|false)$/m);
   for(const name of ['DATABASE_URL','SUPABASE_SECRET_KEY','PAYMONGO_SECRET','ACCESS_SECRET']){
     assert.match(env,new RegExp('^'+name+'=','m'));

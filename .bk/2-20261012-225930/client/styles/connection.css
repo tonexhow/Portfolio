@@ -1,0 +1,47 @@
+/* Shared connection state and two-mode themes. */
+.backend-status{position:relative;display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;flex:0 0 30px;border-radius:50%;outline:none;vertical-align:middle}
+.backend-dot{width:8px;height:8px;border-radius:50%;background:#dc455b;box-shadow:0 0 0 4px rgb(220 69 91 / .10);transition:background .2s,box-shadow .2s}
+.backend-status[data-state="online"] .backend-dot{background:#19a76b;box-shadow:0 0 0 4px rgb(25 167 107 / .12)}
+.backend-tooltip{position:absolute;right:0;top:calc(100% + 10px);padding:9px 12px;border-radius:9px;background:#16202d;color:#fff;font:500 12px/1.4 Inter,sans-serif;white-space:nowrap;box-shadow:0 8px 24px #0002;pointer-events:none;opacity:0;transform:translateY(-4px);transition:opacity .16s,transform .16s;z-index:400}
+.backend-status:hover .backend-tooltip,.backend-status:focus-visible .backend-tooltip{opacity:1;transform:translateY(0)}
+.backend-status:focus-visible{box-shadow:0 0 0 2px var(--accent,#526df2)}
+.theme-slider{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+.server-unavailable{opacity:.45!important;cursor:not-allowed!important}
+[data-offline-notice]{padding:12px 16px;margin:0 0 20px;border:1px solid var(--line,#e1e5ec);border-radius:12px;background:var(--surface,#fff);color:var(--muted,#697587);font-size:13px;line-height:1.6}
+[data-offline-notice][hidden]{display:none}
+[data-theme="dark"] [data-offline-notice]{background:#111820;border-color:#253040;color:#a6b2c2}
+@media(max-width:480px){.backend-status{width:24px;flex-basis:24px}.backend-tooltip{right:-12px}}
+
+[hidden]{display:none!important}
+
+html,body{overflow-x:clip}
+.grant-status-header{display:flex;align-items:center;justify-content:space-between;padding:15px 24px;border-bottom:1px solid var(--line);background:var(--surface)}.grant-back{font-size:12px;color:var(--text-soft)}
+
+.legal-actions{display:flex;align-items:center;justify-content:flex-end;gap:12px;flex-wrap:wrap}.legal-header-inner{gap:12px;flex-wrap:wrap}.legal-actions .theme-slider{flex-shrink:0}
+
+/* Three-service health indicator: good=all online, warning=mixed, danger=all down. */
+.backend-status .backend-dot{width:10px;height:10px;transition:background .2s,box-shadow .2s}
+.backend-status[data-state="good"] .backend-dot{background:#26c885;box-shadow:0 0 0 5px rgb(38 200 133 / .15)}
+.backend-status[data-state="warning"] .backend-dot{background:#f5b63c;box-shadow:0 0 0 5px rgb(245 182 60 / .15)}
+.backend-status[data-state="danger"] .backend-dot{background:#f46672;box-shadow:0 0 0 5px rgb(244 102 114 / .16)}
+.backend-status{cursor:help}
+.service-health-popover{position:fixed;z-index:100001;width:340px;max-width:calc(100vw - 24px);padding:16px;
+ background:#121c28;color:#f3f7fc;border:1px solid #354457;border-radius:17px;
+ box-shadow:0 20px 50px #0009;pointer-events:none;font:400 13px/1.5 Inter,system-ui,sans-serif}
+.service-health-popover[hidden]{display:none!important}
+.service-health-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px;padding-bottom:12px;border-bottom:1px solid #334152}
+.service-health-heading>strong{font-size:15px}
+.service-health-heading>span{font-size:11px;text-align:right;color:#ffbd57}
+.service-health-heading>span[data-level="good"]{color:#70e6a4}
+.service-health-heading>span[data-level="danger"]{color:#ff909a}
+.service-health-row{display:grid;grid-template-columns:10px minmax(0,1fr) auto;align-items:center;gap:12px;padding:8px 1px}
+.service-health-row>div{min-width:0;display:grid;gap:2px}
+.service-health-row strong{font-size:13px;font-weight:700}
+.service-health-row small{font-size:11px;color:#a4b3c4;line-height:1.4}
+.service-health-dot{height:9px;width:9px;border-radius:100%;background:#ef6a77;box-shadow:0 0 0 4px #ef6a771d}
+.service-health-dot[data-state="online"]{background:#48d68c;box-shadow:0 0 0 4px #48d68c1d}
+.service-health-value{font-weight:700;font-size:11px;color:#cad4df}
+.service-health-advice{margin:12px 0 0;border-top:1px solid #334152;padding-top:12px;color:#ffcf90;font-size:11px;line-height:1.5}
+@media(max-width:480px){.service-health-popover{padding:12px;border-radius:13px}}
+
+.service-health-dot[data-state="pending"]{background:#f4b940;box-shadow:0 0 0 4px #f4b94020}
