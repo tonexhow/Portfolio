@@ -47,9 +47,12 @@ func validRoot(p string) bool {
 			return true
 		}
 	}
-	// Compiled backend distribution: .env + database/schema.sql.
-	if _, e := os.Stat(filepath.Join(p, ".env")); e != nil {
-		return false
+	// Compiled backend distribution: either top-level .env or split
+	// env/server/.env, and an application database schema.
+	if _, rootError := os.Stat(filepath.Join(p, ".env")); rootError != nil {
+		if _, innerError := os.Stat(filepath.Join(p, "env", "server", ".env")); innerError != nil {
+			return false
+		}
 	}
 	if _, e := os.Stat(filepath.Join(p, "database", "schema.sql")); e != nil {
 		return false
@@ -64,11 +67,18 @@ func Load() (Settings, error) {
 	}
 	c.Root = root
 	c.ClientDir = filepath.Join(root, "client")
+	// Environment variables from the host always take precedence. Then the
+	// top-level .env wins over the separately generated server fallback.
 	if err = loadEnv(filepath.Join(root, ".env")); err != nil {
 		return c, err
 	}
+	if err = loadEnv(filepath.Join(root, "env", "server", ".env")); err != nil {
+		return c, err
+	}
 	c.FrontendPort = env("FRONTEND_PORT", "3000")
-	c.BackendPort = env("BACKEND_PORT", "8080")
+	// Render and similar PaaS providers supply PORT as a process variable.
+	// Honor it ahead of the checked-in/local BACKEND_PORT setting.
+	c.BackendPort = env("PORT", env("BACKEND_PORT", "8080"))
 	c.Bind = env("BACKEND_BIND", "127.0.0.1")
 	for _, p := range []string{c.FrontendPort, c.BackendPort} {
 		n, e := strconv.Atoi(p)

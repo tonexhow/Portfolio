@@ -31,14 +31,15 @@ import (
 )
 
 type app struct {
-	db         *database.DB
-	clientDir  string
-	appURL     string
-	apiURL     string
-	origins    map[string]bool
-	settings   config.Settings
-	mediaStore *mediastore.Client
-	chat       *chatHub
+	db              *database.DB
+	clientDir       string
+	appURL          string
+	apiURL          string
+	origins         map[string]bool
+	settings        config.Settings
+	mediaStore      *mediastore.Client
+	databaseFailure string
+	chat            *chatHub
 
 	smtpHost string
 	smtpPort string
@@ -92,30 +93,66 @@ func main() {
 	closeRuntimeLog := configureRuntimeLog(settings.Root, settings.ClientDir)
 	defer closeRuntimeLog()
 	var db *database.DB
-	if settings.DatabaseURL != "" {
-		db, err = database.Open(settings.DatabaseURL)
-		if err == nil {
-			autoSetup := strings.EqualFold(env("DB_AUTO_SETUP", "false"), "true")
-			var initialized bool
-			initialized, err = database.Ensure(db, settings.Root, autoSetup)
-			if err == nil && initialized {
-				log.Print("Supabase database initialized from database/schema.sql and database/initial_data.sql.")
+	dbFailure := "not_configured"
+	// The direct endpoint normally resolves to IPv6. A Supabase Session Pooler
+	// URI can be used on IPv4-only networks or configured on its own. Do not
+	// construct or guess a pooler host from a project reference.
+	primaryURL := strings.TrimSpace(settings.DatabaseURL)
+	poolerURL := strings.TrimSpace(os.Getenv("DATABASE_POOLER_URL"))
+	candidates := make([]string, 0, 2)
+	if primaryURL != "" {
+		candidates = append(candidates, primaryURL)
+	}
+	if poolerURL != "" && poolerURL != primaryURL {
+		candidates = append(candidates, poolerURL)
+	}
+	if len(candidates) > 0 {
+		var lastError error
+		for i, connectionURL := range candidates {
+			candidate, connectErr := database.Open(connectionURL)
+			if connectErr != nil {
+				lastError = connectErr
+				// Never log or return credentials, hosts or private URLs.
+				log.Printf("Database connection option %d unavailable (reason=%s).", i+1, databaseFailureCode(connectErr))
+				continue
 			}
+			db = candidate
+			settings.DatabaseURL = connectionURL
+			if i > 0 {
+				log.Print("Database connected using the configured alternate connection option.")
+			}
+			break
+		}
+		if db != nil {
+			var aligned bool
+			aligned, err = database.Ensure(db, settings.Root,
+				false, strings.EqualFold(env("DB_AUTO_MIGRATE", "false"), "true"))
+			if err == nil && aligned {
+				log.Print("Reviewed schema.sql alignment applied; portfolio content was not seeded or reset.")
+			} else if err == nil {
+				log.Print("Database schema is compatible; no alignment necessary.")
+			}
+		} else {
+			err = lastError
 		}
 		if err != nil {
+			dbFailure = databaseFailureCode(err)
 			if db != nil {
 				_ = db.Close()
 				db = nil
 			}
-			// Connection strings may contain passwords: never log the URL or raw driver error.
-			log.Print("Database is not ready. Verify DATABASE_URL/network access. If this is a new database, set DB_AUTO_SETUP=true and restart.")
+			log.Printf("Database not ready (reason=%s). See server/docs/DATABASE_TROUBLESHOOTING.md.", dbFailure)
 		}
 	} else {
-		log.Print("DATABASE_URL is empty. The API process is online, but database-backed actions are unavailable.")
+		log.Print("No database connection URL was supplied. The API can respond, but management features are unavailable.")
 	}
+
 	if db != nil {
+		dbFailure = ""
 		defer db.Close()
 		database.CleanupExpiredAccess(db)
+		// Remove only delivered AI email history older than 15 days. Unsent drafts stay available.
+		// Cleanup also repeats in the hourly maintenance tick.
 	}
 	accessSecret, err := loadAccessSecret()
 	if err != nil {
@@ -127,38 +164,50 @@ func main() {
 	}
 	if mediaStore != nil {
 		storageCtx, cancelStorage := context.WithTimeout(context.Background(), 20*time.Second)
-		storageErr := mediaStore.EnsureBucket(storageCtx)
+		var storageErr error
+		if strings.EqualFold(env("STORAGE_AUTO_SETUP", "false"), "true") {
+			storageErr = mediaStore.EnsureBucket(storageCtx)
+		} else {
+			storageErr = mediaStore.CheckBucket(storageCtx)
+		}
 		cancelStorage()
 		if storageErr != nil {
 			if strings.EqualFold(env("STORAGE_REQUIRED", "false"), "true") {
 				log.Fatalf("Supabase Storage is required but unavailable: %v", storageErr)
 			}
-			log.Printf("Supabase Storage is not ready; image uploads will use the database fallback until storage is configured: %v", storageErr)
+			log.Printf("Supabase Storage not ready; Go uses database image fallback until configured. No storage policy was changed: %v", storageErr)
 			mediaStore = nil
 		}
 	}
 
 	a := &app{
-		db:           db,
-		clientDir:    settings.ClientDir,
-		appURL:       settings.FrontendOrigin,
-		apiURL:       settings.APIOrigin,
-		origins:      settings.Origins,
-		settings:     settings,
-		mediaStore:   mediaStore,
-		chat:         newChatHub(),
-		smtpHost:     env("SMTP_HOST", "smtp.gmail.com"),
-		smtpPort:     env("SMTP_PORT", "587"),
-		smtpUser:     os.Getenv("SMTP_EMAIL"),
-		smtpPass:     os.Getenv("SMTP_PASSWORD"),
-		smtpTo:       os.Getenv("SMTP_TO"),
-		accessSecret: accessSecret,
-		access:       newAccessManager(),
-		rateLimiter:  make(map[string]*rateState),
+		db:              db,
+		clientDir:       settings.ClientDir,
+		appURL:          settings.FrontendOrigin,
+		apiURL:          settings.APIOrigin,
+		origins:         settings.Origins,
+		settings:        settings,
+		mediaStore:      mediaStore,
+		databaseFailure: dbFailure,
+		chat:            newChatHub(),
+		smtpHost:        env("SMTP_HOST", "smtp.gmail.com"),
+		smtpPort:        env("SMTP_PORT", "587"),
+		smtpUser:        os.Getenv("SMTP_EMAIL"),
+		smtpPass:        os.Getenv("SMTP_PASSWORD"),
+		smtpTo:          os.Getenv("SMTP_TO"),
+		accessSecret:    accessSecret,
+		access:          newAccessManager(),
+		rateLimiter:     make(map[string]*rateState),
+	}
+
+	if a.db != nil {
+		go a.reconcilePendingPayments(context.Background())
 	}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/health", a.health)
+	mux.HandleFunc("GET /api/public/ai/status", a.aiStatus)
+	mux.HandleFunc("POST /api/public/ai/chat", a.aiChat)
 	mux.HandleFunc("GET /api/public/snapshot", a.publicSnapshot)
 	mux.HandleFunc("GET /api/public/information", a.publicInformation)
 	mux.HandleFunc("GET /api/public/project-media/{id}", a.publicProjectMedia)
@@ -186,6 +235,16 @@ func main() {
 
 	mux.HandleFunc("GET /api/public/career-profiles", a.publicCareerProfiles)
 	mux.HandleFunc("GET /api/public/chat/status", a.publicChatStatus)
+	mux.HandleFunc("GET /api/chat/images/{id}", a.viewChatImage)
+	mux.HandleFunc("POST /api/admin/chat/images", a.requireAdmin(a.adminUploadChatImage))
+	mux.HandleFunc("GET /api/public/chat/offers", a.publicChatOffers)
+	mux.HandleFunc("POST /api/public/chat/handoff", a.publicChatHandoff)
+	mux.HandleFunc("GET /api/public/chat/inquiries", a.publicInquiries)
+	mux.HandleFunc("POST /api/public/chat/inquiries", a.publicCreateInquiry)
+	mux.HandleFunc("POST /api/public/chat/inquiries/{id}/withdraw", a.publicWithdrawInquiry)
+	mux.HandleFunc("POST /api/public/chat/offers/{id}/checkout", a.publicChatOfferCheckout)
+	mux.HandleFunc("POST /api/paymongo/webhook", a.paymongoWebhook)
+	mux.HandleFunc("POST /api/public/chat/offers/{id}/verify", a.publicVerifyOffer)
 	mux.HandleFunc("GET /api/public/chat/avatar", a.publicChatAvatar)
 	mux.HandleFunc("POST /api/public/chat/session", a.publicChatSession)
 	mux.HandleFunc("GET /api/public/chat/ws", a.publicChatWS)
@@ -200,6 +259,23 @@ func main() {
 	mux.HandleFunc("GET /api/access/events", a.accessEvents)
 	mux.HandleFunc("POST /api/access/logout", a.adminLogout)
 	mux.HandleFunc("POST /api/admin/logout", a.adminLogout)
+	mux.HandleFunc("GET /api/admin/ai/providers", a.requireAdmin(a.adminAIProviders))
+	mux.HandleFunc("POST /api/admin/ai/health", a.requireAdmin(a.adminAIHealth))
+	mux.HandleFunc("POST /api/admin/ai/providers", a.requireAdmin(a.adminAICreate))
+	mux.HandleFunc("PATCH /api/admin/ai/providers/{id}", a.requireAdmin(a.adminAIUpdate))
+	mux.HandleFunc("DELETE /api/admin/ai/providers/{id}", a.requireAdmin(a.adminAIDelete))
+	mux.HandleFunc("POST /api/admin/ai/providers/{id}/reveal", a.requireAdmin(a.adminAIReveal))
+	mux.HandleFunc("GET /api/admin/ai/reply-drafts", a.requireAdmin(a.adminAIReplyDrafts))
+	mux.HandleFunc("POST /api/admin/ai/reply-drafts/{id}/send", a.requireAdmin(a.adminSendAIReplyDraft))
+	mux.HandleFunc("GET /api/admin/transactions", a.requireAdmin(a.adminTransactions))
+	mux.HandleFunc("POST /api/admin/transactions/{id}/verify", a.requireAdmin(a.adminVerifyTransaction))
+	mux.HandleFunc("POST /api/admin/transactions/{id}/archive", a.requireAdmin(a.adminArchiveTransaction))
+	mux.HandleFunc("POST /api/admin/transactions/clear-paid", a.requireAdmin(a.adminClearPaidTransactions))
+	mux.HandleFunc("GET /api/admin/database/tables", a.requireAdmin(a.adminDatabaseTables))
+	mux.HandleFunc("GET /api/admin/database/tables/{schema}/{table}/rows", a.requireAdmin(a.adminDatabaseRows))
+	mux.HandleFunc("GET /api/admin/server/info", a.requireAdmin(a.adminServerInfo))
+	mux.HandleFunc("POST /api/admin/server/network-check", a.requireAdmin(a.adminNetworkCheck))
+	mux.HandleFunc("GET /api/admin/server/logs", a.requireAdmin(a.adminServerLogs))
 	mux.HandleFunc("GET /api/admin/overview", a.requireAdmin(a.adminOverviewV2))
 	mux.HandleFunc("GET /api/admin/analytics", a.requireAdmin(a.adminAnalytics))
 	mux.HandleFunc("GET /api/admin/feedback", a.requireAdmin(a.adminFeedbackPage))
@@ -237,6 +313,11 @@ func main() {
 	mux.HandleFunc("GET /api/admin/chats/{id}", a.requireAdmin(a.adminChatMessages))
 	mux.HandleFunc("DELETE /api/admin/chats/{id}", a.requireAdmin(a.adminDeleteChat))
 	mux.HandleFunc("GET /api/admin/chat/ws", a.requireAdmin(a.adminChatWS))
+	mux.HandleFunc("POST /api/admin/chats/{id}/offers", a.requireAdmin(a.adminCreateProjectOffer))
+	mux.HandleFunc("GET /api/admin/chats/{id}/offers", a.requireAdmin(a.adminChatOffers))
+	mux.HandleFunc("GET /api/admin/chats/{id}/inquiries", a.requireAdmin(a.adminInquiries))
+	mux.HandleFunc("PATCH /api/admin/inquiries/{id}", a.requireAdmin(a.adminUpdateInquiry))
+	mux.HandleFunc("POST /api/admin/project-offers/{id}/archive", a.requireAdmin(a.adminArchiveProjectOffer))
 
 	// The frontend is deployed independently. Only API/auth routes live here.
 	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) { http.Redirect(w, r, a.appURL, http.StatusSeeOther) })
@@ -246,13 +327,14 @@ func main() {
 		Handler:           a.crossOrigin(a.databaseReady(a.logRequests(mux))),
 		ReadHeaderTimeout: 8 * time.Second,
 		ReadTimeout:       15 * time.Second,
-		WriteTimeout:      20 * time.Second,
+		WriteTimeout:      45 * time.Second,
 		IdleTimeout:       60 * time.Second,
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	go a.runProjectChecks(ctx)
+	go a.cleanupAIReplyHistory()
 	go func() {
 		ticker := time.NewTicker(time.Hour)
 		defer ticker.Stop()
@@ -262,6 +344,7 @@ func main() {
 				return
 			case <-ticker.C:
 				a.cleanupChats()
+				a.cleanupAIReplyHistory()
 			}
 		}
 	}()
@@ -286,9 +369,10 @@ func main() {
 
 func configureRuntimeLog(root, clientDir string) func() {
 	if info, err := os.Stat(clientDir); err == nil && info.IsDir() {
+		enableManagementLog(os.Stderr)
 		return func() {}
 	}
-	dir := filepath.Join(root, "systems")
+	dir := filepath.Join(root, "server", ".runtime")
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return func() {}
 	}
@@ -296,12 +380,12 @@ func configureRuntimeLog(root, clientDir string) func() {
 	if err != nil {
 		return func() {}
 	}
-	log.SetOutput(f)
+	enableManagementLog(f)
 	return func() { _ = f.Close() }
 }
 
 func writeRuntimePID(root string) func() {
-	dir := filepath.Join(root, "systems")
+	dir := filepath.Join(root, "server", ".runtime")
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		log.Printf("Unable to create runtime directory for PID file: %v", err)
 		return func() {}
@@ -423,10 +507,14 @@ func (a *app) submitFeedback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := a.db.Exec(`INSERT INTO feedback(display_name, rating, comment, auth_provider, auth_user_id, credential, profile_url) VALUES(?,?,?,?,?,?,?)`,
-		identity.DisplayName, in.Rating, in.Comment, identity.Provider, identity.ProviderUserID, identity.Credential, identity.ProfileURL); err != nil {
+	var feedbackID int64
+	if err := a.db.QueryRow(`INSERT INTO feedback(display_name, rating, comment, auth_provider, auth_user_id, credential, profile_url) VALUES(?,?,?,?,?,?,?) RETURNING id`,
+		identity.DisplayName, in.Rating, in.Comment, identity.Provider, identity.ProviderUserID, identity.Credential, identity.ProfileURL).Scan(&feedbackID); err != nil {
 		writeError(w, http.StatusInternalServerError, "Unable to save feedback.")
 		return
+	}
+	if feedbackID > 0 {
+		go a.prepareAIReply("feedback", feedbackID, identity.DisplayName, identity.Credential, "Portfolio feedback", in.Comment)
 	}
 	a.markSubmissionCooldown(r, "feedback", 30*time.Second)
 	writeJSON(w, http.StatusCreated, map[string]any{
@@ -472,11 +560,15 @@ func (a *app) submitContact(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err := a.db.Exec(`INSERT INTO contact_messages(full_name,email,profile_url,subject,message) VALUES(?,?,?,?,?)`, in.FullName, email, identity.ProfileURL, in.Subject, in.Message); err != nil {
+	var contactID int64
+	if err := a.db.QueryRow(`INSERT INTO contact_messages(full_name,email,profile_url,subject,message) VALUES(?,?,?,?,?) RETURNING id`, in.FullName, email, identity.ProfileURL, in.Subject, in.Message).Scan(&contactID); err != nil {
 		writeError(w, http.StatusInternalServerError, "Unable to save your message.")
 		return
 	}
 
+	if contactID > 0 {
+		go a.prepareAIReply("contact", contactID, in.FullName, email, in.Subject, in.Message)
+	}
 	a.markSubmissionCooldown(r, "contact", 30*time.Second)
 	writeJSON(w, http.StatusCreated, map[string]any{
 		"message":          "Message sent successfully.",

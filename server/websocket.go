@@ -103,6 +103,26 @@ func (c *wsConn) writeFrame(op byte, payload []byte) error {
 func (c *wsConn) writeText(payload []byte) error { return c.writeFrame(0x1, payload) }
 func (c *wsConn) writeJSON(payload []byte) error { return c.writeText(payload) }
 
+// heartbeat keeps otherwise-idle visitor/Admin sockets alive, so verified
+// payment events can be delivered immediately after a PayMongo webhook.
+// Browser WebSockets reply to Ping with Pong automatically. The read loop
+// processes these control frames, renewing its idle timeout.
+func (c *wsConn) heartbeat(stop <-chan struct{}) {
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-stop:
+			return
+		case <-ticker.C:
+			if err := c.writeFrame(0x9, nil); err != nil {
+				c.close()
+				return
+			}
+		}
+	}
+}
+
 func (c *wsConn) readText() ([]byte, error) {
 	for {
 		_ = c.conn.SetReadDeadline(time.Now().Add(90 * time.Second))

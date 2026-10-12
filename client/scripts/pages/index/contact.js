@@ -4,7 +4,7 @@ const { $ } = window.UI;
 const CONTACT_DRAFT_KEY = "jpano-contact-oauth-draft";
 let contactCooldownTimer = null;
 let contactIdentity = null;
-let hasDedicatedContactIdentity = false;
+let feedbackIdentity = null;
 let contactIdentitySyncPromise = Promise.resolve();
 
 function initials(name) {
@@ -42,8 +42,6 @@ function renderContactCooldown() {
 
 function startContactCooldown(seconds = 30) {
   localStorage.setItem(CONTACT_COOLDOWN_KEY, String(Date.now() + (seconds * 1000)));
-  googleButton.href = window.APIManager.apiURL("/auth/contact/google/start");
-  document.addEventListener("portfolio:server-status", event => { if (event.detail.ready) contactIdentitySyncPromise = syncContactIdentity(); });
   renderContactCooldown();
   if (contactCooldownTimer) clearInterval(contactCooldownTimer);
   contactCooldownTimer = setInterval(renderContactCooldown, 1000);
@@ -71,62 +69,73 @@ function restoreDraft({ restoreName = true } = {}) {
   } catch {}
 }
 
-function renderContactIdentity(identity, { forceName = false } = {}) {
+function renderContactIdentity(identity, { forceName = false, feedback = null } = {}) {
+  // These objects are returned by the Go server's verified HTTP-only sessions,
+  // never from an editable form field or a browser-managed OAuth token.
   contactIdentity = identity?.authenticated && identity.provider === "google" && identity.email_verified ? identity : null;
+  feedbackIdentity = feedback?.authenticated ? feedback : null;
   const name = $("#contactName");
   const email = $("#contactGoogleEmail");
   const provider = $("#contactGoogleProvider");
   const meta = $("#contactGoogleMeta");
   const avatar = $("#contactGoogleAvatar");
   const button = $("#contactGoogleButton");
-
-  // Be tolerant of a stale service-worker document/script pair during an update.
   if (!name || !email || !provider || !meta || !avatar || !button) return;
 
-  meta.hidden = false;
-  if (!contactIdentity) {
-    meta.classList.add("unverified");
-    provider.textContent = "Gmail not verified";
-    email.textContent = "Verify with Google so replies use a confirmed email address.";
-    avatar.innerHTML = "<b>G</b>";
-    button.textContent = "Verify Gmail";
-    return;
+  const active = contactIdentity || feedbackIdentity;
+  const selectedName = active?.display_name || "";
+  if (selectedName && (forceName || !name.value.trim() || name.dataset.identityAutofill === "true")) {
+    name.value = selectedName;
+    name.dataset.identityAutofill = "true";
   }
-
-  meta.classList.remove("unverified");
-  provider.textContent = "Verified with Google";
-  email.textContent = contactIdentity.email;
-  avatar.innerHTML = `<b>${initials(contactIdentity.display_name)}</b>`;
-  if (contactIdentity.avatar_url) {
+  meta.hidden = false;
+  meta.classList.toggle("unverified", !contactIdentity);
+  avatar.replaceChildren();
+  const initial = document.createElement("b");
+  initial.textContent = initials(selectedName);
+  avatar.append(initial);
+  if (active?.avatar_url) {
     const image = document.createElement("img");
-    image.src = `${window.APIManager.apiURL(contactIdentity.avatar_url)}?v=${Date.now()}`;
+    image.src = `${window.APIManager.apiURL(active.avatar_url)}?v=${Date.now()}`;
     image.alt = "";
     image.addEventListener("load", () => avatar.prepend(image));
   }
-  button.textContent = "Change account";
-  if (forceName || !name.value.trim() || name.dataset.identityAutofill === "true") {
-    name.value = contactIdentity.display_name || "";
-    name.dataset.identityAutofill = "true";
+
+  if (contactIdentity) {
+    provider.textContent = "Google email verified";
+    email.textContent = contactIdentity.email;
+    button.textContent = "Change account";
+  } else if (feedbackIdentity) {
+    const label = ({ google: "Google", github: "GitHub", facebook: "Facebook", telegram: "Telegram" })[feedbackIdentity.provider] || "Account";
+    provider.textContent = `Signed in with ${label}`;
+    email.textContent = "A verified Google email is required to send a Contact message. Select Google to continue.";
+    button.textContent = "Verify Google email";
+  } else {
+    provider.textContent = "Email not verified";
+    email.textContent = "Choose Google to verify an email before sending. The same account can be used for Feedback.";
+    button.textContent = "Verify account";
   }
 }
 
-async function fetchIdentity(path) { return window.APIManager.request(path, { cache: "no-store" }); }
-
 async function syncContactIdentity({ forceName = false } = {}) {
   try {
-    const contact = await fetchIdentity("/api/public/contact-auth/session");
-    if (contact?.authenticated) {
-      hasDedicatedContactIdentity = true;
-      renderContactIdentity(contact, { forceName });
-      return;
-    }
-    hasDedicatedContactIdentity = false;
-    const feedback = await fetchIdentity("/api/public/feedback-auth/session");
-    renderContactIdentity(feedback?.provider === "google" && feedback?.email_verified ? feedback : null, { forceName });
+    // Contact's session endpoint reuses a valid Feedback Google session on the
+    // current Go backend, while retaining support for older dedicated sessions.
+    const [contact, feedback] = await Promise.all([
+      window.APIManager.getContactAuthSession(),
+      window.APIManager.getFeedbackAuthSession()
+    ]);
+    renderContactIdentity(contact, { feedback, forceName });
   } catch {
-    hasDedicatedContactIdentity = false;
     renderContactIdentity(null);
   }
+}
+
+function requestSharedIdentity() {
+  saveDraft();
+  document.dispatchEvent(new CustomEvent("portfolio:request-shared-identity", {
+    detail: { source: "contact", preferredProvider: "google" }
+  }));
 }
 
 function handleContactAuthResult() {
@@ -138,7 +147,7 @@ function handleContactAuthResult() {
     cancelled: ["Verification cancelled", "No contact account was changed."],
     invalid: ["Verification expired", "Please start Gmail verification again."],
     failed: ["Could not verify Gmail", "Google did not return a usable verified email."],
-    unavailable: ["Google sign-in unavailable", "Google OAuth is not configured on the server yet."]
+    unavailable: ["Google sign-in unavailable", "This sign-in option is currently unavailable. Please try again later."]
   };
   const [title, message] = messages[status] || messages.failed;
   window.UI.toast(message, { title, type: status === "ok" || status === "cancelled" ? undefined : "error" });
@@ -158,28 +167,22 @@ export function wireContact() {
   const contactAuthStatus = handleContactAuthResult();
   restoreDraft({ restoreName: contactAuthStatus !== "ok" });
   contactIdentitySyncPromise = syncContactIdentity({ forceName: contactAuthStatus === "ok" });
-  document.addEventListener("portfolio:feedback-identity", event => {
-    if (!hasDedicatedContactIdentity && event.detail?.provider === "google") renderContactIdentity(event.detail);
+  document.addEventListener("portfolio:feedback-identity", () => {
+    contactIdentitySyncPromise = syncContactIdentity();
+  });
+  document.addEventListener("portfolio:server-status", event => {
+    if (event.detail.ready) contactIdentitySyncPromise = syncContactIdentity();
   });
   name.addEventListener("input", () => { name.dataset.identityAutofill = "false"; });
-  googleButton.addEventListener("click", () => {
-    saveDraft();
-    // Navigation is handled by the real href/target on the link.
-    // This also works when the public portfolio is rendered inside a preview iframe.
-  });
+  googleButton.addEventListener("click", requestSharedIdentity);
 
   form.addEventListener("submit", async event => {
     event.preventDefault();
     await contactIdentitySyncPromise.catch(() => {});
     if (!contactIdentity) {
       saveDraft();
-      window.UI.toast("Verify your Gmail account before sending the message.", { title: "Gmail verification required" });
-      const oauthURL = window.APIManager.apiURL("/auth/contact/google/start");
-      try {
-        window.top.location.href = oauthURL;
-      } catch {
-        window.location.href = oauthURL;
-      }
+      window.UI.toast("Choose Google in the shared account dialog to verify your email before sending.", { title: "Google verification required" });
+      requestSharedIdentity();
       return;
     }
     if (getCooldownRemaining() > 0) {

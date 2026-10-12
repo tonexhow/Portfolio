@@ -1,0 +1,20 @@
+/* Shared connection state and two-mode themes. */
+.backend-status{position:relative;display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;flex:0 0 30px;border-radius:50%;outline:none;vertical-align:middle}
+.backend-dot{width:8px;height:8px;border-radius:50%;background:#dc455b;box-shadow:0 0 0 4px rgb(220 69 91 / .10);transition:background .2s,box-shadow .2s}
+.backend-status[data-state="online"] .backend-dot{background:#19a76b;box-shadow:0 0 0 4px rgb(25 167 107 / .12)}
+.backend-tooltip{position:absolute;right:0;top:calc(100% + 10px);padding:9px 12px;border-radius:9px;background:#16202d;color:#fff;font:500 12px/1.4 Inter,sans-serif;white-space:nowrap;box-shadow:0 8px 24px #0002;pointer-events:none;opacity:0;transform:translateY(-4px);transition:opacity .16s,transform .16s;z-index:400}
+.backend-status:hover .backend-tooltip,.backend-status:focus-visible .backend-tooltip{opacity:1;transform:translateY(0)}
+.backend-status:focus-visible{box-shadow:0 0 0 2px var(--accent,#526df2)}
+.theme-slider{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+.server-unavailable{opacity:.45!important;cursor:not-allowed!important}
+[data-offline-notice]{padding:12px 16px;margin:0 0 20px;border:1px solid var(--line,#e1e5ec);border-radius:12px;background:var(--surface,#fff);color:var(--muted,#697587);font-size:13px;line-height:1.6}
+[data-offline-notice][hidden]{display:none}
+[data-theme="dark"] [data-offline-notice]{background:#111820;border-color:#253040;color:#a6b2c2}
+@media(max-width:480px){.backend-status{width:24px;flex-basis:24px}.backend-tooltip{right:-12px}}
+
+[hidden]{display:none!important}
+
+html,body{overflow-x:clip}
+.grant-status-header{display:flex;align-items:center;justify-content:space-between;padding:15px 24px;border-bottom:1px solid var(--line);background:var(--surface)}.grant-back{font-size:12px;color:var(--text-soft)}
+
+.legal-actions{display:flex;align-items:center;justify-content:flex-end;gap:12px;flex-wrap:wrap}.legal-header-inner{gap:12px;flex-wrap:wrap}.legal-actions .theme-slider{flex-shrink:0}

@@ -8,7 +8,7 @@
       "earnings": {
         "currency": "PHP",
         "min": 50,
-        "max": 30000,
+        "max": 45000,
         "label": "Project range"
       },
       "projects": {
@@ -22,12 +22,12 @@
         "For project-based work, my current range is {project_range}, depending on scope, complexity, integrations, design requirements, and development effort."
       ],
       "tab_messages": [
-        "Your next idea can start here \ud83d\udc4b",
+        "Your next idea can start here 👋",
         "Still thinking about that project?",
-        "The build desk is still open \u2726",
+        "The build desk is still open ✦",
         "Come back when the idea clicks.",
         "A useful system starts with one idea.",
-        "JPano \u00b7 ready when you are."
+        "JPano · ready when you are."
       ]
     },
     "name": {
@@ -40,7 +40,7 @@
       ],
       "highlighted_html": "Jhon An<span class=\"name-accent\">t</span>h<span class=\"name-accent\">ony</span> Pano"
     },
-    "headline": "Bachelor of Science in Information Technology Student \u00b7 Freelancing / Self-Employed",
+    "headline": "Bachelor of Science in Information Technology Student · Freelancing / Self-Employed",
     "intro": "I create web experiences, backend services, databases, and connected systems with an emphasis on clear interfaces, dependable logic, and practical results.",
     "location": "Buenavista, Bohol, Philippines",
     "availability": "Open to project ideas and collaborations",
@@ -49,15 +49,109 @@
       "afternoon": "Good afternoon",
       "evening": "Good evening",
       "messages": [
-        "is here, ready to build your project and turn your ideas into something useful.",
-        "is here, ready to shape your next idea into a thoughtful digital experience.",
-        "is here, ready to design, build, and improve what you have in mind.",
-        "is here, ready to turn a clear concept into a working system.",
-        "is here, ready to create something reliable and suited to the problem.",
-        "is here, ready when your idea needs a clean interface, solid logic, or both.",
-        "is here, building useful systems one project at a time.",
-        "is here, ready to help move your idea from concept to working product."
-      ]
+        "is here, ready to build something useful with purpose.",
+        "is here, exploring a better way to solve real problems.",
+        "is here, creating practical digital tools with care.",
+        "is here, making complex workflows feel simpler.",
+        "is here, turning thoughtful design into dependable software.",
+        "is here, focused on clear interfaces and reliable systems.",
+        "is here, improving the details that make a product easier to use.",
+        "is here, bringing practical ideas to the screen.",
+        "is here, turning requirements into software that makes sense.",
+        "is here, ready to learn what matters most in your idea.",
+        "is here, building for real people and everyday needs.",
+        "is here, combining thoughtful engineering with useful design.",
+        "is here, ready to understand your problem before proposing a solution.",
+        "is here, refining ideas one thoughtful detail at a time.",
+        "is here, connecting design, data and reliable logic.",
+        "is here, creating tools that support better work.",
+        "is here, aiming for simplicity without losing capability.",
+        "is here, making digital experiences clear and approachable.",
+        "is here, designing with usability and trust in mind.",
+        "is here, ready when you have an idea worth discussing."
+      ],
+      "rotation_languages": [
+        "en",
+        "fil",
+        "ceb",
+        "es",
+        "fr",
+        "de",
+        "ja",
+        "ko"
+      ],
+      "translations": {
+        "en": {
+          "morning": "Good morning",
+          "afternoon": "Good afternoon",
+          "evening": "Good evening"
+        },
+        "fil": {
+          "morning": "Magandang umaga",
+          "afternoon": "Magandang hapon",
+          "evening": "Magandang gabi"
+        },
+        "ceb": {
+          "morning": "Maayong buntag",
+          "afternoon": "Maayong hapon",
+          "evening": "Maayong gabii"
+        },
+        "es": {
+          "morning": "Buenos días",
+          "afternoon": "Buenas tardes",
+          "evening": "Buenas noches"
+        },
+        "fr": {
+          "morning": "Bonjour",
+          "afternoon": "Bon après-midi",
+          "evening": "Bonsoir"
+        },
+        "de": {
+          "morning": "Guten Morgen",
+          "afternoon": "Guten Tag",
+          "evening": "Guten Abend"
+        },
+        "ja": {
+          "morning": "おはようございます",
+          "afternoon": "こんにちは",
+          "evening": "こんばんは"
+        },
+        "ko": {
+          "morning": "좋은 아침입니다",
+          "afternoon": "안녕하세요",
+          "evening": "좋은 저녁입니다"
+        }
+      },
+      "localized_messages": {
+        "fil": [
+          "ay narito, handang makinig sa iyong mga ideya.",
+          "ay gumagawa ng mga kapaki-pakinabang na digital na solusyon."
+        ],
+        "ceb": [
+          "anaa dinhi, andam maminaw sa imong ideya.",
+          "nagbuhat og praktikal nga mga digital nga solusyon."
+        ],
+        "es": [
+          "está aquí para escuchar tu idea.",
+          "crea soluciones digitales prácticas."
+        ],
+        "fr": [
+          "est ici pour écouter vos idées.",
+          "conçoit des outils numériques utiles."
+        ],
+        "de": [
+          "ist hier, um neue Ideen zu verstehen.",
+          "entwickelt praktische digitale Lösungen."
+        ],
+        "ja": [
+          "は、アイデアに耳を傾ける準備ができています。",
+          "は、役立つデジタルツールを作っています。"
+        ],
+        "ko": [
+          "는 새로운 아이디어를 들을 준비가 되어 있습니다.",
+          "는 실용적인 디지털 도구를 만듭니다."
+        ]
+      }
     },
     "contact": {
       "email": "jacpano@gmail.com",

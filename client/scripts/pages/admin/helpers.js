@@ -23,40 +23,38 @@ export function closeModal(id,result=false){
   if(resolver){modalResolvers.delete(id);resolver(Boolean(result))}
 }
 
+// Native <dialog> enters the browser top layer, above project dialogs and overlays.
+const confirmResolvers=new Map();
 function ensureConfirmModal(){
   const id="adminConfirmModal";
   let modal=document.getElementById(id);
   if(modal)return modal;
-
-  modal=document.createElement("div");
-  modal.className="modal-backdrop";
+  modal=document.createElement("dialog");modal.className="admin-confirm-dialog";
   modal.id=id;
-  modal.hidden=true;
-  modal.innerHTML=`<div class="management-modal small" role="dialog" aria-modal="true" aria-labelledby="adminConfirmTitle" aria-describedby="adminConfirmMessage">
+  modal.innerHTML=`<div class="management-modal small" aria-labelledby="adminConfirmTitle" aria-describedby="adminConfirmMessage">
     <span class="modal-icon danger" aria-hidden="true">!</span>
     <h2 id="adminConfirmTitle">Confirm action</h2>
     <p id="adminConfirmMessage">This action cannot be undone.</p>
-    <div class="modal-actions"><button class="modal-secondary" id="adminConfirmCancel" type="button">Cancel</button><button class="modal-danger" id="adminConfirmAction" type="button">Delete</button></div>
+    <div class="modal-actions"><button class="modal-secondary" id="adminConfirmCancel" type="button">Cancel</button><button class="modal-danger" id="adminConfirmAction" type="button">Confirm</button></div>
   </div>`;
   document.body.append(modal);
-  $("#adminConfirmCancel",modal).addEventListener("click",()=>closeModal(id,false));
-  $("#adminConfirmAction",modal).addEventListener("click",()=>closeModal(id,true));
-  modal.addEventListener("click",event=>{if(event.target===modal)closeModal(id,false)});
+  const finish=accepted=>{if(modal.open)modal.close(accepted?'yes':'no')};
+  $("#adminConfirmCancel",modal).addEventListener("click",()=>finish(false));
+  $("#adminConfirmAction",modal).addEventListener("click",()=>finish(true));
+  modal.addEventListener("click",event=>{if(event.target===modal)finish(false)});
+  modal.addEventListener("close",()=>{const resolve=confirmResolvers.get(id);if(resolve){confirmResolvers.delete(id);resolve(modal.returnValue==='yes')}});
   return modal;
 }
-
 export function confirmAction({title="Confirm action",message="This action cannot be undone.",confirmLabel="Delete",cancelLabel="Cancel"}={}){
   const modal=ensureConfirmModal();
-  const id=modal.id;
-  const existing=modalResolvers.get(id);
-  if(existing){modalResolvers.delete(id);existing(false)}
+  if(modal.open)return Promise.resolve(false);
   $("#adminConfirmTitle",modal).textContent=title;
   $("#adminConfirmMessage",modal).textContent=message;
   $("#adminConfirmAction",modal).textContent=confirmLabel;
   $("#adminConfirmCancel",modal).textContent=cancelLabel;
-  openModal(id);
-  requestAnimationFrame(()=>$("#adminConfirmAction",modal)?.focus());
-  return new Promise(resolve=>modalResolvers.set(id,resolve));
+  modal.showModal();
+  requestAnimationFrame(()=>$("#adminConfirmCancel",modal)?.focus());
+  return new Promise(resolve=>confirmResolvers.set(modal.id,resolve));
 }
 
 export function setEmpty(root, message){root.innerHTML=`<div class="admin-empty">${escapeHTML(message)}</div>`}

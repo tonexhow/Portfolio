@@ -309,6 +309,8 @@ func (a *app) adminDeleteFeedback(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "Feedback not found.")
 		return
 	}
+	// A removed visitor submission must not remain in the private AI draft inbox.
+	_, _ = a.db.Exec(`DELETE FROM portfolio.ai_reply_drafts WHERE source_type='feedback' AND source_id=?`, id)
 	writeJSON(w, http.StatusOK, map[string]string{"message": "Feedback deleted."})
 }
 
@@ -425,6 +427,8 @@ func (a *app) adminDeleteContact(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "Contact message not found.")
 		return
 	}
+	// Avoid retaining deleted contact content in an unrelated AI draft.
+	_, _ = a.db.Exec(`DELETE FROM portfolio.ai_reply_drafts WHERE source_type='contact' AND source_id=?`, id)
 	writeJSON(w, http.StatusOK, map[string]string{"message": "Contact message deleted."})
 }
 

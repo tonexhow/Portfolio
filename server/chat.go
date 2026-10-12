@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"io"
 	"net"
 	"net/http"
 	"strconv"
@@ -230,17 +229,39 @@ func (a *app) chatAvailable() bool {
 	return active
 }
 
+// A signed-in visitor may leave messages while management is disconnected.
+// Provider identity is resolved from validated server-side OAuth cookies, never
+// from headers or client-submitted profile fields.
+func (a *app) chatAllowedForVisitor(r *http.Request) bool {
+	if a.db == nil || a.chat == nil {
+		return false
+	}
+	if a.chatAvailable() {
+		return true
+	}
+	meta := a.chatVisitorMetadata(r)
+	return meta.AuthProvider != "" && meta.AuthName != ""
+}
+
 func (a *app) publicChatStatus(w http.ResponseWriter, r *http.Request) {
 	meta := a.chatVisitorMetadata(r)
 	identity := map[string]any{"authenticated": meta.AuthName != ""}
 	if meta.AuthName != "" {
 		identity["display_name"] = meta.AuthName
 		identity["provider"] = meta.AuthProvider
+		if validEmail(meta.AuthCredential) {
+			identity["email"] = strings.TrimSpace(strings.ToLower(meta.AuthCredential))
+		}
 		if meta.ProfileURL != "" {
 			identity["avatar_url"] = "/api/public/chat/avatar"
 		}
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"available": a.chatAvailable(), "transport": "websocket", "retention_days": 7, "identity": identity})
+	adminOnline := a.chatAvailable()
+	writeJSON(w, http.StatusOK, map[string]any{
+		"available":    adminOnline || (meta.AuthProvider != "" && meta.AuthName != ""),
+		"admin_online": adminOnline, "requires_oauth": !adminOnline && meta.AuthName == "",
+		"transport": "websocket", "retention_days": 7, "identity": identity,
+	})
 }
 
 func (a *app) publicChatAvatar(w http.ResponseWriter, r *http.Request) {
@@ -258,10 +279,16 @@ func (a *app) cleanupChats() {
 	}
 	now := time.Now()
 	_, _ = a.db.Exec(`DELETE FROM chat_messages WHERE expires_at<?`, now)
+	_, _ = a.db.Exec(`DELETE FROM chat_images WHERE expires_at<?`, now)
 	_, _ = a.db.Exec(`DELETE FROM chat_threads t WHERE t.updated_at<? AND NOT EXISTS(SELECT 1 FROM chat_messages m WHERE m.thread_id=t.id)`, now.Add(-7*24*time.Hour))
 }
 
 func (a *app) currentChatThread(r *http.Request) (string, error) {
+	// Session cookies must never trigger a nil-database panic while the
+	// public API is serving its degraded/offline diagnostic state.
+	if a.db == nil {
+		return "", sql.ErrNoRows
+	}
 	cookie, err := r.Cookie(chatCookieName)
 	if err != nil || cookie.Value == "" {
 		return "", sql.ErrNoRows
@@ -276,12 +303,15 @@ func (a *app) setChatCookie(w http.ResponseWriter, r *http.Request, token string
 
 func (a *app) publicChatSession(w http.ResponseWriter, r *http.Request) {
 	a.cleanupChats()
-	if !a.chatAvailable() {
-		writeError(w, http.StatusServiceUnavailable, "Live chat is offline because no administrator is currently available.")
+	// Reopen an EXISTING cookie-scoped chat to receive project payment events
+	// even when Admin is offline. Creating a NEW guest thread still requires
+	// Admin availability or verified OAuth identity.
+	threadID, err := a.currentChatThread(r)
+	if err != nil && !a.chatAllowedForVisitor(r) {
+		writeError(w, http.StatusForbidden, "Sign in with Google, GitHub, or Telegram to leave a message while management is offline.")
 		return
 	}
 	meta := a.chatVisitorMetadata(r)
-	threadID, err := a.currentChatThread(r)
 	if err != nil {
 		if !a.allow(r, "chat-session", 5, 24*time.Hour) {
 			writeError(w, http.StatusTooManyRequests, "Too many live-chat sessions were started from this connection. Try again later.")
@@ -322,11 +352,11 @@ func (a *app) publicChatSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	_, _ = a.db.Exec(`UPDATE chat_threads SET visitor_unread=0,updated_at=clock_timestamp() WHERE id=?`, threadID)
-	writeJSON(w, http.StatusOK, map[string]any{"thread_id": threadID, "messages": messages, "available": true, "retention_days": 7})
+	writeJSON(w, http.StatusOK, map[string]any{"thread_id": threadID, "messages": messages, "available": a.chatAllowedForVisitor(r), "admin_online": a.chatAvailable(), "retention_days": 7})
 }
 
 func (a *app) loadChatMessages(thread string, limit int) ([]chatMessage, error) {
-	rows, err := a.db.Query(`SELECT id,thread_id,sender,body,created_at FROM chat_messages WHERE thread_id=? AND expires_at>? ORDER BY created_at,id LIMIT ?`, thread, time.Now(), limit)
+	rows, err := a.db.Query(`SELECT id,thread_id,sender,body,created_at FROM chat_messages WHERE thread_id=? AND expires_at>? ORDER BY id DESC LIMIT ?`, thread, time.Now(), limit)
 	if err != nil {
 		return nil, err
 	}
@@ -339,12 +369,18 @@ func (a *app) loadChatMessages(thread string, limit int) ([]chatMessage, error) 
 		}
 		out = append(out, m)
 	}
-	return out, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	for i, j := 0, len(out)-1; i < j; i, j = i+1, j-1 {
+		out[i], out[j] = out[j], out[i]
+	}
+	return out, nil
 }
 func (a *app) saveChatMessage(thread, sender, body string) (chatMessage, error) {
 	body = strings.TrimSpace(body)
-	if len([]rune(body)) > 2000 {
-		body = string([]rune(body)[:2000])
+	if len([]rune(body)) > 12000 {
+		body = string([]rune(body)[:12000])
 	}
 	m := chatMessage{ThreadID: thread, Sender: sender, Body: body}
 	if body == "" {
@@ -370,10 +406,9 @@ func (a *app) saveChatMessage(thread, sender, body string) (chatMessage, error) 
 }
 
 func (a *app) publicChatWS(w http.ResponseWriter, r *http.Request) {
-	if !a.chatAvailable() {
-		writeError(w, http.StatusServiceUnavailable, "Live chat is offline.")
-		return
-	}
+	// Read-only payment notifications remain available for an existing
+	// cookie-scoped thread after Admin disconnects. Incoming visitor messages
+	// are still checked with chatAllowedForVisitor below.
 	thread, err := a.currentChatThread(r)
 	if err != nil {
 		writeError(w, http.StatusUnauthorized, "Open live chat first.")
@@ -384,6 +419,9 @@ func (a *app) publicChatWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer c.close()
+	heartbeatStop := make(chan struct{})
+	go c.heartbeat(heartbeatStop)
+	defer close(heartbeatStop)
 	a.chat.addVisitor(thread, c)
 	defer a.chat.removeVisitor(thread, c)
 	_ = c.writeJSON([]byte(`{"type":"ready"}`))
@@ -398,7 +436,7 @@ func (a *app) publicChatWS(w http.ResponseWriter, r *http.Request) {
 		if json.Unmarshal(data, &in) != nil {
 			continue
 		}
-		if !a.chatAvailable() {
+		if !a.chatAllowedForVisitor(r) {
 			_ = c.writeJSON([]byte(`{"type":"availability","available":false}`))
 			continue
 		}
@@ -422,6 +460,9 @@ func (a *app) adminChatWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer c.close()
+	heartbeatStop := make(chan struct{})
+	go c.heartbeat(heartbeatStop)
+	defer close(heartbeatStop)
 	wasZero := a.chat.adminCount() == 0
 	a.chat.addAdmin(c)
 	if wasZero {
@@ -520,16 +561,13 @@ func (a *app) adminChats(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// Admin history is fetched newest-first with an ID cursor, then returned in
+// chronological display order. No schema or stored chat rows are changed.
 func (a *app) adminChatMessages(w http.ResponseWriter, r *http.Request) {
 	thread := clean(r.PathValue("id"), 120)
-	messages, err := a.loadChatMessages(thread, 500)
-	if err != nil {
-		writeError(w, 500, "Unable to load messages.")
-		return
-	}
 	var x chatThread
 	var profileURL string
-	err = a.db.QueryRow(`SELECT id,status,admin_unread,visitor_unread,visitor_ip,visitor_ip_hash,visitor_user_agent,visitor_agent,visitor_platform,visitor_country,visitor_referrer,visitor_fingerprint,visitor_auth_provider,visitor_auth_name,visitor_auth_credential,visitor_profile_url,last_message_at,created_at FROM chat_threads WHERE id=?`, thread).Scan(
+	err := a.db.QueryRow(`SELECT id,status,admin_unread,visitor_unread,visitor_ip,visitor_ip_hash,visitor_user_agent,visitor_agent,visitor_platform,visitor_country,visitor_referrer,visitor_fingerprint,visitor_auth_provider,visitor_auth_name,visitor_auth_credential,visitor_profile_url,last_message_at,created_at FROM chat_threads WHERE id=?`, thread).Scan(
 		&x.ID, &x.Status, &x.AdminUnread, &x.VisitorUnread, &x.VisitorIP, &x.VisitorIPHash, &x.VisitorUserAgent, &x.VisitorAgent, &x.VisitorPlatform, &x.VisitorCountry, &x.VisitorReferrer, &x.VisitorFingerprint, &x.VisitorAuthProvider, &x.VisitorAuthName, &x.VisitorAuthCredential, &profileURL, &x.LastMessageAt, &x.CreatedAt)
 	if err != nil {
 		writeError(w, 404, "Chat not found.")
@@ -538,8 +576,50 @@ func (a *app) adminChatMessages(w http.ResponseWriter, r *http.Request) {
 	if x.VisitorAuthProvider != "" && profileURL != "" {
 		x.VisitorAvatarURL = "/api/admin/chats/" + x.ID + "/avatar"
 	}
-	_, _ = a.db.Exec(`UPDATE chat_threads SET admin_unread=0,updated_at=clock_timestamp() WHERE id=?`, thread)
-	writeJSON(w, http.StatusOK, map[string]any{"thread_id": thread, "thread": x, "messages": messages})
+	before, err := strconv.ParseInt(r.URL.Query().Get("before"), 10, 64)
+	if r.URL.Query().Get("before") != "" && (err != nil || before <= 0) {
+		writeError(w, 400, "Invalid history cursor.")
+		return
+	}
+	var rows *sql.Rows
+	if before > 0 {
+		rows, err = a.db.Query(`SELECT id,thread_id,sender,body,created_at FROM chat_messages WHERE thread_id=? AND expires_at>? AND id<? ORDER BY id DESC LIMIT 31`, thread, time.Now(), before)
+	} else {
+		rows, err = a.db.Query(`SELECT id,thread_id,sender,body,created_at FROM chat_messages WHERE thread_id=? AND expires_at>? ORDER BY id DESC LIMIT 31`, thread, time.Now())
+	}
+	if err != nil {
+		writeError(w, 500, "Unable to load messages.")
+		return
+	}
+	defer rows.Close()
+	messages := make([]chatMessage, 0, 30)
+	for rows.Next() {
+		var m chatMessage
+		if err = rows.Scan(&m.ID, &m.ThreadID, &m.Sender, &m.Body, &m.CreatedAt); err != nil {
+			writeError(w, 500, "Unable to load messages.")
+			return
+		}
+		messages = append(messages, m)
+	}
+	if rows.Err() != nil {
+		writeError(w, 500, "Unable to load messages.")
+		return
+	}
+	hasMore := len(messages) > 30
+	if hasMore {
+		messages = messages[:30]
+	}
+	for i, j := 0, len(messages)-1; i < j; i, j = i+1, j-1 {
+		messages[i], messages[j] = messages[j], messages[i]
+	}
+	var nextBefore any
+	if hasMore && len(messages) > 0 {
+		nextBefore = messages[0].ID
+	}
+	if before == 0 {
+		_, _ = a.db.Exec(`UPDATE chat_threads SET admin_unread=0,updated_at=clock_timestamp() WHERE id=?`, thread)
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"thread_id": thread, "thread": x, "messages": messages, "has_more": hasMore, "next_before": nextBefore})
 }
 
 func (a *app) adminChatAvatar(w http.ResponseWriter, r *http.Request) {
@@ -567,4 +647,58 @@ func (a *app) adminDeleteChat(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"message": "Chat deleted."})
 }
 
-func drainBody(r *http.Request) { _, _ = io.Copy(io.Discard, io.LimitReader(r.Body, 1024)) }
+// Visitor-approved handoff is written to the existing 7-day Live Chat thread.
+// It works before a WebSocket connects and is delivered when Admin reconnects.
+func (a *app) publicChatHandoff(w http.ResponseWriter, r *http.Request) {
+	if !a.chatAllowedForVisitor(r) {
+		writeError(w, 403, "Live Chat is unavailable. Sign in to leave a message if Admin is offline.")
+		return
+	}
+	if !a.allow(r, "chat-handoff", 4, time.Hour) {
+		writeError(w, 429, "Please wait before sharing another summary.")
+		return
+	}
+	thread, err := a.currentChatThread(r)
+	if err != nil {
+		writeError(w, 401, "Open a Live Chat session first.")
+		return
+	}
+	var in struct {
+		Messages []struct {
+			Role    string `json:"role"`
+			Content string `json:"content"`
+		} `json:"messages"`
+		Confirmed bool `json:"confirmed"`
+	}
+	if decodeJSONWithLimit(r, &in, 20*1024) != nil || !in.Confirmed || len(in.Messages) == 0 || len(in.Messages) > 18 {
+		writeError(w, 400, "Confirm sharing up to 18 recent Bot messages.")
+		return
+	}
+	lines := []string{"**Tonex Bot handoff (shared with visitor consent)**", ""}
+	for _, m := range in.Messages {
+		if m.Role != "user" && m.Role != "assistant" {
+			writeError(w, 400, "Invalid conversation history.")
+			return
+		}
+		who := "Visitor"
+		if m.Role == "assistant" {
+			who = "Tonex Bot"
+		}
+		body := strings.TrimSpace(m.Content)
+		if len([]rune(body)) > 600 {
+			body = string([]rune(body)[:600]) + "…"
+		}
+		// Avoid untrusted Markdown/commands shaping an Admin message as a system instruction.
+		body = strings.NewReplacer("\r", " ", "\n", " ", "<", "‹", ">", "›").Replace(body)
+		lines = append(lines, who+": "+body)
+	}
+	message, err := a.saveChatMessage(thread, "visitor", strings.Join(lines, "\n\n"))
+	if err != nil {
+		writeError(w, 503, "Unable to save the handoff yet.")
+		return
+	}
+	event := map[string]any{"type": "message", "message": message}
+	a.chat.sendThread(thread, event)
+	a.chat.sendAdmins(event)
+	writeJSON(w, 201, map[string]any{"shared": true, "thread_id": thread, "message_id": message.ID})
+}

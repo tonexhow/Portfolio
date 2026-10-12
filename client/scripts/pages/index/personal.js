@@ -2,6 +2,7 @@ import { ICONS, compactMoney, escapeHTML, formatMoney, isVisibleValue, phoneHref
 
 const { $, $$ } = window.UI;
 let selectedGreetingMessage = "";
+let selectedGreetingLanguage = "";
 let lastAwayMessage = "";
 
 function chooseGreetingMessage(data) {
@@ -10,11 +11,54 @@ function chooseGreetingMessage(data) {
   return messages[secureRandomIndex(messages.length)];
 }
 
+const greetings = Object.freeze({
+ en:["Good morning","Good afternoon","Good evening"],fil:["Magandang umaga","Magandang hapon","Magandang gabi"],
+ ceb:["Maayong buntag","Maayong hapon","Maayong gabii"],es:["Buenos días","Buenas tardes","Buenas noches"],
+ fr:["Bonjour","Bon après-midi","Bonsoir"],de:["Guten Morgen","Guten Tag","Guten Abend"],
+ it:["Buongiorno","Buon pomeriggio","Buonasera"],pt:["Bom dia","Boa tarde","Boa noite"],
+ nl:["Goedemorgen","Goedemiddag","Goedenavond"],sv:["God morgon","God eftermiddag","God kväll"],
+ no:["God morgen","God ettermiddag","God kveld"],da:["Godmorgen","God eftermiddag","Godaften"],
+ fi:["Hyvää huomenta","Hyvää iltapäivää","Hyvää iltaa"],pl:["Dzień dobry","Dzień dobry","Dobry wieczór"],
+ tr:["Günaydın","İyi günler","İyi akşamlar"],ru:["Доброе утро","Добрый день","Добрый вечер"],
+ uk:["Доброго ранку","Добрий день","Добрий вечір"],ar:["صباح الخير","مساء الخير","مساء الخير"],
+ hi:["सुप्रभात","नमस्कार","शुभ संध्या"],bn:["সুপ্রভাত","শুভ অপরাহ্ণ","শুভ সন্ধ্যা"],
+ zh:["早上好","下午好","晚上好"],ja:["おはようございます","こんにちは","こんばんは"],
+ ko:["좋은 아침입니다","안녕하세요","좋은 저녁입니다"],th:["สวัสดีตอนเช้า","สวัสดีตอนบ่าย","สวัสดีตอนเย็น"],
+ vi:["Chào buổi sáng","Chào buổi chiều","Chào buổi tối"],id:["Selamat pagi","Selamat siang","Selamat malam"],
+ ms:["Selamat pagi","Selamat petang","Selamat malam"],sw:["Habari za asubuhi","Habari za mchana","Habari za jioni"],
+ he:["בוקר טוב","אחר הצהריים טובים","ערב טוב"],el:["Καλημέρα","Καλό απόγευμα","Καλησπέρα"],
+ ro:["Bună dimineața","Bună ziua","Bună seara"],cs:["Dobré ráno","Dobré odpoledne","Dobrý večer"],
+ hu:["Jó reggelt","Jó napot","Jó estét"],fa:["صبح بخیر","عصر بخیر","شب بخیر"]
+});
+function preferredLanguage(){
+  const list=(navigator.languages?.length?navigator.languages:[navigator.language||'en']).map(x=>String(x||'').toLowerCase().split('-')[0]);
+  return list.find(x=>greetings[x])||'en';
+}
+function visitorGreeting(period, data, rotate=false){
+  const index=period==='morning'?0:period==='afternoon'?1:2;
+  const suggested=(data.greeting?.rotation_languages||[]).filter(x=>typeof x==='string'&&greetings[x]);
+  const pool=suggested.length?suggested:[preferredLanguage()];
+  if(!selectedGreetingLanguage||rotate){
+    const alternatives=pool.length>1?pool.filter(x=>x!==selectedGreetingLanguage):pool;
+    selectedGreetingLanguage=alternatives[secureRandomIndex(alternatives.length)]||'en';
+  }
+  const language=selectedGreetingLanguage;
+  const localized=data.greeting?.translations?.[language];
+  const specified=localized?.[period];
+  return (typeof specified==='string'&&specified.trim())?specified:
+    language==='en'?(data.greeting?.[period]||greetings.en[index]):greetings[language]?.[index]||greetings.en[index];
+}
 export function renderGreeting(data, chooseNew = false) {
   const hour = new Date().getHours();
   const period = hour < 12 ? "morning" : hour < 18 ? "afternoon" : "evening";
-  $("#greetingKicker").textContent = `${data.greeting?.[period] || "Hello"},`;
-  if (chooseNew || !selectedGreetingMessage) selectedGreetingMessage = chooseGreetingMessage(data);
+  $("#greetingKicker").textContent = `${visitorGreeting(period,data,chooseNew)},`;
+  if (chooseNew || !selectedGreetingMessage) {
+    const localized=data.greeting?.localized_messages?.[selectedGreetingLanguage];
+    if(Array.isArray(localized)&&localized.some(isVisibleValue)){
+      const items=localized.filter(isVisibleValue);
+      selectedGreetingMessage=items[secureRandomIndex(items.length)];
+    }else selectedGreetingMessage = chooseGreetingMessage(data);
+  }
   const full = data.name?.full || "Jhon Anthony Pano";
   $("#greetingMessage").textContent = selectedGreetingMessage
     .replaceAll("{first}", data.name?.first || "Jhon Anthony")
@@ -42,7 +86,7 @@ function buildAbout(data) {
   const capstones = Number(data.portfolio?.capstone_count || 0);
   const projectCount = Number(data.portfolio?.projects?.count || 0);
   const earnings = data.portfolio?.earnings || {};
-  const range = `${formatMoney(earnings.min, earnings.currency)} to ${formatMoney(earnings.max, earnings.currency)}`;
+  const range = "determined by the agreed project scope";
   const templates = (data.portfolio?.about_templates || []).filter(isVisibleValue);
   const text = templates.map(template => escapeHTML(template)
     .replaceAll("{capstone_count}", `<strong class="inline-emphasis">${capstones}</strong>`)
@@ -175,8 +219,8 @@ export function renderPersonalInformation(data) {
 
   const earnings = data.portfolio?.earnings || {};
   const range = `${formatMoney(earnings.min, earnings.currency)} – ${formatMoney(earnings.max, earnings.currency)}`;
-  $("#heroEarning").textContent = range;
-  $("#earningRange").textContent = `${compactMoney(earnings.min, earnings.currency)}–${compactMoney(earnings.max, earnings.currency)}`;
+  $("#heroEarning").textContent = "Based on scope";
+  $("#earningRange").textContent = "Custom quote";
 
   $("#projectsIntro").textContent = data.portfolio?.projects?.intro || "";
   $("#projectVisibilityNote").textContent = data.portfolio?.projects?.visibility_note || "";

@@ -31,3 +31,31 @@ func TestEnvDoesNotReplaceProcessSettings(t *testing.T) {
 		t.Fatal("process environment was replaced")
 	}
 }
+
+func TestRootEnvWinsOverInnerEnv(t *testing.T) {
+	const key = "JPANO_CONFIG_PRECEDENCE_TEST"
+	_ = os.Unsetenv(key)
+	defer os.Unsetenv(key)
+	root := t.TempDir()
+	outer := filepath.Join(root, ".env")
+	innerDir := filepath.Join(root, "env", "server")
+	if err := os.MkdirAll(innerDir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	inner := filepath.Join(innerDir, ".env")
+	if err := os.WriteFile(outer, []byte(key+"=from-root\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(inner, []byte(key+"=from-inner\n"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if err := loadEnv(outer); err != nil {
+		t.Fatal(err)
+	}
+	if err := loadEnv(inner); err != nil {
+		t.Fatal(err)
+	}
+	if got := os.Getenv(key); got != "from-root" {
+		t.Fatalf("got %q, expected root setting", got)
+	}
+}

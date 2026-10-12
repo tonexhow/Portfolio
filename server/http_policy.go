@@ -42,6 +42,12 @@ func (a *app) crossOrigin(next http.Handler) http.Handler {
 		}
 		// CSRF protection for cookie-authenticated writes. Browser JS supplies Origin
 		// and a non-simple header; no wildcard origins or credentials in the frontend.
+		if r.Method == http.MethodPost && r.URL.Path == "/api/paymongo/webhook" {
+			// PayMongo does not send a browser Origin or CSRF header. This exact
+			// route independently authenticates the *raw body* by HMAC.
+			next.ServeHTTP(w, r)
+			return
+		}
 		if r.Method != http.MethodGet && r.Method != http.MethodHead {
 			if origin == "" || !a.origins[origin] || r.Header.Get("X-Portfolio-Request") != "1" {
 				writeError(w, http.StatusForbidden, "The request could not be verified. Refresh the page and try again.")
@@ -53,7 +59,8 @@ func (a *app) crossOrigin(next http.Handler) http.Handler {
 }
 func (a *app) databaseReady(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/api/health" && r.URL.Path != "/" && a.db == nil {
+		if r.URL.Path != "/api/health" && r.URL.Path != "/" &&
+			!strings.HasPrefix(r.URL.Path, "/api/public/ai/") && a.db == nil {
 			writeError(w, http.StatusServiceUnavailable, "The server is temporarily unavailable. Please try again later.")
 			return
 		}
@@ -65,6 +72,12 @@ func (a *app) health(w http.ResponseWriter, r *http.Request) {
 	// reported separately so the header does not call a running backend "offline".
 	result := map[string]any{"online": true, "ready": false, "database": false, "storage": a.mediaStore != nil, "service": "jpano-portfolio-api"}
 	if a.db == nil {
+		code := a.databaseFailure
+		if code == "" {
+			code = "database_unavailable"
+		}
+		result["database_reason"] = code
+		result["database_advice"] = "The database service is temporarily unavailable. Please contact the site administrator."
 		writeJSON(w, http.StatusOK, result)
 		return
 	}
@@ -72,6 +85,8 @@ func (a *app) health(w http.ResponseWriter, r *http.Request) {
 	defer cancel()
 	var revision int64
 	if err := a.db.QueryRowContext(ctx, "SELECT revision FROM portfolio.sync_state WHERE id=1").Scan(&revision); err != nil {
+		result["database_reason"] = "database_query_failed"
+		result["database_advice"] = "The database service is temporarily unavailable. Please contact the site administrator."
 		writeJSON(w, http.StatusOK, result)
 		return
 	}

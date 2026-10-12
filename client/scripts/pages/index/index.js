@@ -1,12 +1,12 @@
 import { renderGreeting, renderPersonalInformation, wireTabMessages } from "./personal.js?v=40";
 import { initProfileRotation, cleanupProfileRotation } from "./profile.js?v=40";
-import { loadProjects, wireProjectPagination } from "./projects.js?v=40";
+import { loadProjects, wireProjectPagination, cleanupProjectGallery } from "./projects.js?v=44";
 import { loadCertificates, wireCertificates } from "./certificates.js?v=40";
-import { loadFeedback, wireFeedback, cleanupFeedback } from "./feedback.js?v=40";
-import { wireContact, cleanupContact } from "./contact.js?v=40";
+import { loadFeedback, wireFeedback, cleanupFeedback } from "./feedback.js?v=45";
+import { wireContact, cleanupContact } from "./contact.js?v=44";
 import { cleanupAdaptiveIndexLayout, initAdaptiveIndexLayout, refreshAdaptiveIndexLayout } from "./layout.js?v=40";
 import { initManagementAccess } from "./management.js?v=40";
-import { initCareerProfile, initLiveChat, cleanupCareerChat } from "./career-chat.js?v=43";
+import { initCareerProfile, initLiveChat, cleanupCareerChat } from "./career-chat.js?v=45";
 let personal = {}, greetingTimer, refreshQueued = false, started = false, profileSignature = "", visitSent = false;
 const quiet = task => Promise.resolve(task).catch(error => console.warn(error?.message || error));
 async function renderData() {
@@ -51,6 +51,6 @@ export async function initIndexPage() {
   await window.UI.PageLoader?.hide?.();
 }
 export function cleanupIndexPage() {
-  cleanupProfileRotation(); cleanupContact(); cleanupFeedback(); cleanupAdaptiveIndexLayout(); cleanupCareerChat(); clearInterval(greetingTimer);
+  cleanupProfileRotation(); cleanupProjectGallery(); cleanupContact(); cleanupFeedback(); cleanupAdaptiveIndexLayout(); cleanupCareerChat(); clearInterval(greetingTimer);
   document.removeEventListener("portfolio:content-updated", scheduleRefresh); document.removeEventListener("portfolio:server-status", recordVisit);
 }

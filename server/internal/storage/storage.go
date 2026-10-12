@@ -109,6 +109,33 @@ func (c *Client) do(req *http.Request) (*http.Response, []byte, error) {
 	return res, body, nil
 }
 
+// CheckBucket is intentionally read-only. The Go server must not silently
+// make an existing Supabase bucket public or create one on every startup.
+func (c *Client) CheckBucket(ctx context.Context) error {
+	endpoint := c.BaseURL + "/storage/v1/bucket/" + url.PathEscape(c.Bucket)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return err
+	}
+	res, data, err := c.do(req)
+	if err != nil {
+		return fmt.Errorf("inspect Supabase Storage bucket: %w", err)
+	}
+	if res.StatusCode < 200 || res.StatusCode >= 300 {
+		return fmt.Errorf("Supabase Storage bucket check returned HTTP %d", res.StatusCode)
+	}
+	var bucket struct {
+		Public bool `json:"public"`
+	}
+	if err := json.Unmarshal(data, &bucket); err != nil {
+		return errors.New("Supabase Storage bucket response is invalid")
+	}
+	if !bucket.Public {
+		return errors.New("Supabase Storage bucket must be explicitly configured as public for published portfolio media")
+	}
+	return nil
+}
+
 func (c *Client) EnsureBucket(ctx context.Context) error {
 	endpoint := c.BaseURL + "/storage/v1/bucket/" + url.PathEscape(c.Bucket)
 	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)

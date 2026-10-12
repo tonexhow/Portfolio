@@ -1,0 +1,43 @@
+# Secrets / local configuration
+.env
+.env.*
+
+# Generated release output
+jpano/
+systems/.jpano-api.pid
+
+# Frontend generated files
+client/node_modules/
+client/dist/
+client/.vercel/
+client/coverage/
+
+# Backend generated files
+server/bin/
+server/dist/
+server/tmp/
+server/coverage/
+server/*.exe
+server/*.test
+server/coverage.out
+
+# Database data import is local/private; schema stays versioned
+database/initial_data.sql
+
+# Logs / temporary files
+*.log
+*.tmp
+*.bak
+*.swp
+*.pid
+
+# Editor / OS noise
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Go workspace/local build cache files
+go.work
+go.work.sum

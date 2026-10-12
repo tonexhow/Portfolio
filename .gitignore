@@ -1,43 +1,27 @@
-# Secrets / local configuration
+# Private application credentials: never commit or deploy to static hosting
 .env
-.env.*
+**/.env
+env/server/
 
-# Generated release output
-jpano/
-systems/.jpano-api.pid
-
-# Frontend generated files
-client/node_modules/
-client/dist/
-client/.vercel/
-client/coverage/
-
-# Backend generated files
-server/bin/
-server/dist/
-server/tmp/
-server/coverage/
-server/*.exe
-server/*.test
-server/coverage.out
-
-# Database data import is local/private; schema stays versioned
-database/initial_data.sql
-
-# Logs / temporary files
+# Built artifacts and runtime data
+client/htmls/vercel/dist/
+**/node_modules/
+server/.runtime/
+jpano-portfolio/
+*.exe
 *.log
-*.tmp
-*.bak
-*.swp
-*.pid
-
-# Editor / OS noise
-.vscode/
-.idea/
+*.zip
 .DS_Store
 Thumbs.db
-Desktop.ini
 
-# Go workspace/local build cache files
-go.work
-go.work.sum
+# Private configuration
+.env
+**/.env
+**/.env.*
+!**/.env.example
+env/
+**/node_modules/
+JPano-Release/
+*.key
+*.pem
+

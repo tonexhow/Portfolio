@@ -54,7 +54,8 @@ function closeViewer() {
 }
 
 function openViewer(id) {
-  const item = currentItems.find(entry => String(entry.id) === String(id));
+  const item = currentItems.find(entry => String(entry.id) === String(id))
+    || (window.PublicStore.current?.certificates||[]).find(entry=>String(entry.id)===String(id));
   if (!item) return;
   $("#certificateViewerImage").src = item.image_url;
   $("#certificateViewerImage").alt = `Certificate from ${item.provider}`;
@@ -170,6 +171,10 @@ export async function loadCertificates(page = certificatePage, { progressive = t
 }
 
 export function wireCertificates() {
+  document.addEventListener("portfolio:open-certificate",event=>{
+    const id=event.detail?.id;
+    if(id!=null)openViewer(id);
+  });
   const prev = $("#certificatePrev");
   const next = $("#certificateNext");
   const grid = $("#certificateGrid");

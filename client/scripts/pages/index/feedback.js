@@ -8,6 +8,9 @@ let feedbackCooldownTimer = null;
 let feedbackIdentity = null;
 let authProvidersLoaded = false;
 const FEEDBACK_COMMENT_LIMIT = 300;
+const CONTACT_AUTH_INTENT_KEY = "jpano-shared-contact-auth-intent";
+const CHAT_AUTH_INTENT_KEY = "jpano-chat-auth-intent";
+let authModalSource = "feedback";
 
 function providerLabel(provider) {
   return ({ google: "Google", github: "GitHub", facebook: "Facebook", telegram: "Telegram", legacy: "Guest" })[provider] || "Verified";
@@ -146,11 +149,18 @@ async function loadAuthProviders() {
   }
 }
 
-async function openAuthModal() {
+async function openAuthModal(source = "feedback") {
+  authModalSource = source;
   const modal = $("#feedbackAuthModal");
   modal.hidden = false;
   document.documentElement.classList.add("modal-open");
   await loadAuthProviders();
+  if (source === "contact" && !modal.hidden) {
+    rootGoogleProvider()?.focus();
+  }
+}
+function rootGoogleProvider() {
+  return $("#feedbackAuthProviders [data-feedback-provider=google]");
 }
 
 function closeAuthModal() {
@@ -169,11 +179,22 @@ function handleAuthResult() {
     failed: ["Could not verify identity", "The provider did not return a usable account identity."],
     unavailable: ["Provider unavailable", "That sign-in provider is not configured."]
   };
-  const [title, message] = messages[status] || messages.failed;
+  const fromContact = sessionStorage.getItem(CONTACT_AUTH_INTENT_KEY) === "contact";
+  const fromChat = sessionStorage.getItem(CHAT_AUTH_INTENT_KEY) === "chat";
+  const [title, message] = fromContact && status === "ok"
+    ? ["Account verified", "Your shared identity is ready. Contact messages still require a verified Google email."]
+    : (messages[status] || messages.failed);
   window.UI.toast(message, { title, type: status === "ok" || status === "cancelled" ? undefined : "error" });
   params.delete("feedback_auth");
   const query = params.toString();
-  history.replaceState(null, "", `${location.pathname}${query ? `?${query}` : ""}${location.hash || "#feedback"}`);
+  sessionStorage.removeItem(CONTACT_AUTH_INTENT_KEY);
+  if(fromChat){
+    if(status === "ok")sessionStorage.setItem(CHAT_AUTH_INTENT_KEY,"reopen");
+    else sessionStorage.removeItem(CHAT_AUTH_INTENT_KEY);
+  }
+  const targetHash = fromContact ? "#contact" : fromChat ? (location.hash||"#home") : (location.hash || "#feedback");
+  history.replaceState(null, "", `${location.pathname}${query ? `?${query}` : ""}${targetHash}`);
+  if (fromContact) requestAnimationFrame(() => $("#contact")?.scrollIntoView({ block: "start" }));
 }
 
 function bindAvatarFallbacks(root) {
@@ -236,12 +257,19 @@ export function wireFeedback() {
   document.addEventListener("portfolio:server-status", event => { if (event.detail.ready) void loadFeedbackIdentity(); });
   $("#feedbackPrev").addEventListener("click", () => { if (feedbackPage > 1) loadFeedback(feedbackPage - 1); });
   $("#feedbackNext").addEventListener("click", () => { if (feedbackPage < feedbackPages) loadFeedback(feedbackPage + 1); });
-  $("#feedbackIdentityButton").addEventListener("click", openAuthModal);
+  $("#feedbackIdentityButton").addEventListener("click", () => { void openAuthModal("feedback"); });
+  document.addEventListener("portfolio:request-shared-identity", event => {
+    void openAuthModal(["contact","chat"].includes(event.detail?.source)?event.detail.source:"feedback");
+  });
   $("#feedbackAuthClose").addEventListener("click", closeAuthModal);
   $("#feedbackAuthModal").addEventListener("click", event => { if (event.target.id === "feedbackAuthModal") closeAuthModal(); });
   $("#feedbackAuthProviders").addEventListener("click", event => {
     const button = event.target.closest("[data-feedback-provider]");
     if (!button || button.disabled) return;
+    if (authModalSource === "contact") sessionStorage.setItem(CONTACT_AUTH_INTENT_KEY, "contact");
+    else sessionStorage.removeItem(CONTACT_AUTH_INTENT_KEY);
+    if (authModalSource === "chat") sessionStorage.setItem(CHAT_AUTH_INTENT_KEY, "chat");
+    else sessionStorage.removeItem(CHAT_AUTH_INTENT_KEY);
     window.location.assign(window.APIManager.apiURL(`/auth/feedback/${encodeURIComponent(button.dataset.feedbackProvider)}/start`));
   });
   $("#feedbackAuthClear").addEventListener("click", async () => {
@@ -261,7 +289,7 @@ export function wireFeedback() {
     event.preventDefault();
     if (!feedbackIdentity) {
       window.UI.toast("Choose a verified account before sending feedback.", { title: "Verify identity" });
-      openAuthModal();
+      void openAuthModal("feedback");
       return;
     }
     if (getCooldownRemaining() > 0) {
@@ -284,7 +312,7 @@ export function wireFeedback() {
     } catch (error) {
       if (error.status === 401) {
         renderIdentity(null);
-        openAuthModal();
+        void openAuthModal("feedback");
       }
       if (error.status === 429 && error.data?.retry_after) startFeedbackCooldown(Number(error.data.retry_after));
       else window.UI.setButtonLoading(button, false);

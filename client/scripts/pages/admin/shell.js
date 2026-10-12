@@ -36,9 +36,12 @@ export function initShell(onView){
   const checkSession=()=>window.APIManager.getAccessSession().then(session=>{
     if(!session.authorized){location.replace("/access");return}
     expiresAt=new Date(session.expires_at).getTime(); sessionTick();
-  }).catch(()=>{sessionEl.textContent="Server offline";});
+  }).catch(()=>{
+    if(window.ServerStatus?.online===true)sessionEl.textContent="Session not verified";
+    else sessionEl.textContent="Server offline";
+  });
   void checkSession();
-  document.addEventListener("portfolio:server-status", event=>{if(event.detail.ready){void checkSession();onView?.((location.hash||"#overview").slice(1),false);}});
+  document.addEventListener("portfolio:server-status", event=>{if(event.detail?.ready){void checkSession();onView?.((location.hash||"#overview").slice(1),false);}else if(event.detail?.online){sessionEl.textContent="Database unavailable";}});
   setInterval(sessionTick,1000);
 
   let activeView=(location.hash||"#overview").slice(1), syncTimer;
@@ -62,7 +65,7 @@ export function initShell(onView){
   };
   $$("[data-admin-view]").forEach(b=>b.addEventListener("click",()=>activate(b.dataset.adminView)));
   const initial=(location.hash||"#overview").slice(1);
-  activate(["overview","dashboard","feedbacks","contacts","certificates","projects","career","chats","information"].includes(initial)?initial:"overview");
+  activate(["overview","dashboard","feedbacks","contacts","certificates","projects","career","chats","information","transactions","artificial-intelligence","database","server"].includes(initial)?initial:"overview");
 
   $("#endSessionButton")?.addEventListener("click",()=>openModal("endSessionModal"));
   $$("[data-close-modal]").forEach(b=>b.addEventListener("click",()=>closeModal(b.dataset.closeModal)));

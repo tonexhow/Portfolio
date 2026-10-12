@@ -19,7 +19,14 @@ import (
 type DB struct{ *sql.DB }
 type Tx struct{ *sql.Tx }
 
+// Keep the legacy schema version unchanged so the still-live older Go server
+// can connect to the same database after this additive migration.
 const SchemaVersion = 4
+const PublicProjectsMigration = "20261012_published_projects_rpc"
+const PublicSnapshotMigration = "20261012_public_snapshot_rpc"
+const ProjectOffersMigration = "20261012_project_offers_v1"
+const LongChatMigration = "20261012_chat_12000_v1"
+const ChatImagesMigration = "20261012_chat_images_v1"
 
 func Open(connection string) (*DB, error) {
 	u, err := url.Parse(connection)
@@ -62,62 +69,212 @@ func Init(db *DB) error {
 	if version != SchemaVersion {
 		return errors.New("database schema version does not match this application")
 	}
+	// Direct public Supabase reads are optional until the migration is
+	// explicitly enabled. Keeping the legacy schema valid avoids breaking
+	// the live site while the new frontend/UI is tested locally.
 	var exists bool
 	if err := db.QueryRow("SELECT EXISTS(SELECT 1 FROM portfolio.personal_information WHERE id=1)").Scan(&exists); err != nil {
 		return err
 	}
 	if !exists {
-		return errors.New("apply database/initial_data.sql first")
+		return errors.New("portfolio information record is missing; schema alignment never seeds content")
 	}
 	return nil
 }
 
-// Ensure initializes an empty Supabase/PostgreSQL database from the checked-in
-// schema and seed when autoSetup is enabled. Existing initialized databases are
-// only validated; normal application startup never resets or overwrites data.
-func Ensure(db *DB, root string, autoSetup bool) (bool, error) {
-	if err := Init(db); err == nil {
+// SchemaStatus inspects the existing database without modifying records.
+func SchemaStatus(db *DB) (int, error) {
+	var exists bool
+	if err := db.QueryRow("SELECT to_regclass('portfolio.schema_version') IS NOT NULL").Scan(&exists); err != nil {
+		return 0, errors.New("unable to inspect schema registry")
+	}
+	if !exists {
+		return 0, nil
+	}
+	var version int
+	if err := db.QueryRow("SELECT COALESCE(MAX(version),0) FROM portfolio.schema_version").Scan(&version); err != nil {
+		return 0, errors.New("unable to read schema registry")
+	}
+	return version, nil
+}
+
+// SchemaShapeReady checks required core columns without reading or editing
+// visitor content. The legacy version marker alone is insufficient to detect
+// a partially applied older migration or missing Admin tables.
+func SchemaShapeReady(db *DB) (bool, error) {
+	required := map[string][]string{
+		"schema_version":           {"version"},
+		"schema_migrations":        {"migration_key"},
+		"sync_state":               {"id", "revision"},
+		"personal_information":     {"id", "content"},
+		"projects":                 {"id", "name", "visible", "images_json"},
+		"certificates":             {"id", "provider", "storage_url", "visible"},
+		"career_profiles":          {"id", "title", "storage_url", "visible"},
+		"feedback":                 {"id", "status"},
+		"contact_messages":         {"id", "status"},
+		"chat_threads":             {"id", "visitor_fingerprint", "last_message_at"},
+		"chat_messages":            {"id", "body", "expires_at"},
+		"chat_images":              {"id", "thread_id", "image_mime", "image_data", "expires_at"},
+		"admin_sessions":           {"id", "token_hash", "expires_at"},
+		"project_offers":           {"id", "price_centavos", "status", "contact_email", "acceptance_email_sent_at", "owner_name", "owner_provider", "archived_at", "admin_note"},
+		"project_payment_attempts": {"id", "checkout_session_id", "status", "customer_email", "customer_phone", "archived_at"},
+		"project_inquiries":        {"id", "thread_id", "title", "requested_centavos", "status", "offer_id"},
+		"ai_provider_configs":      {"id", "provider", "key_ciphertext", "enabled"},
+		"ai_reply_drafts":          {"id", "source_type", "message", "sent_at"},
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+	defer cancel()
+	rows, err := db.QueryContext(ctx, `SELECT table_name,column_name FROM information_schema.columns WHERE table_schema='portfolio'`)
+	if err != nil {
+		return false, fmt.Errorf("cannot inspect database structure: %w", err)
+	}
+	defer rows.Close()
+	found := make(map[string]map[string]bool)
+	for rows.Next() {
+		var table, column string
+		if err := rows.Scan(&table, &column); err != nil {
+			return false, fmt.Errorf("cannot scan schema structure: %w", err)
+		}
+		if found[table] == nil {
+			found[table] = make(map[string]bool)
+		}
+		found[table][column] = true
+	}
+	if err := rows.Err(); err != nil {
+		return false, fmt.Errorf("cannot inspect database structure: %w", err)
+	}
+	for table, columns := range required {
+		for _, column := range columns {
+			if !found[table][column] {
+				return false, nil
+			}
+		}
+	}
+	return true, nil
+}
+
+// HasPublicProjectMigration is read-only and returns false for old databases.
+func HasPublicProjectMigration(db *DB) (bool, error) {
+	var exists bool
+	if err := db.QueryRow("SELECT to_regclass('portfolio.schema_migrations') IS NOT NULL").Scan(&exists); err != nil {
+		return false, errors.New("unable to inspect additive migration registry")
+	}
+	if !exists {
 		return false, nil
 	}
-	if !autoSetup {
-		return false, errors.New("database schema/data is not initialized")
+	var applied bool
+	if err := db.QueryRow("SELECT EXISTS(SELECT 1 FROM portfolio.schema_migrations WHERE migration_key=$1)", PublicProjectsMigration).Scan(&applied); err != nil {
+		return false, errors.New("unable to read additive migration registry")
 	}
+	return applied, nil
+}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-	defer cancel()
-
-	var schemaTable bool
-	if err := db.QueryRowContext(ctx, "SELECT to_regclass('portfolio.schema_version') IS NOT NULL").Scan(&schemaTable); err != nil {
-		return false, errors.New("unable to inspect database schema")
+// Ensure checks compatibility, applies only reviewed additive SQL when opted
+// in, validates the function and existing data, then allows startup. The old
+// database.schema_version stays at 4; old deployed Go servers remain compatible.
+// No content/identity/chat table is renamed, truncated or deleted.
+func Ensure(db *DB, root string, _ bool, autoMigrate bool) (bool, error) {
+	version, err := SchemaStatus(db)
+	if err != nil {
+		return false, err
+	}
+	if version > SchemaVersion {
+		return false, fmt.Errorf("legacy schema %d is newer than the supported base %d", version, SchemaVersion)
+	}
+	migrationApplied, rpcPresent := false, false
+	if version == SchemaVersion {
+		migrationApplied, err = HasPublicProjectMigration(db)
+		if err != nil {
+			return false, err
+		}
+		if err := db.QueryRow("SELECT to_regprocedure('public.jpano_public_projects()') IS NOT NULL").Scan(&rpcPresent); err != nil {
+			return false, errors.New("unable to inspect published-project RPC")
+		}
+	}
+	var snapshotPresent, snapshotRecorded bool
+	if version == SchemaVersion {
+		if err := db.QueryRow("SELECT to_regprocedure('public.jpano_public_snapshot()') IS NOT NULL").Scan(&snapshotPresent); err != nil {
+			return false, errors.New("unable to inspect public snapshot RPC")
+		}
+		if exists, err := HasPublicProjectMigration(db); err == nil && exists {
+			if err := db.QueryRow("SELECT EXISTS(SELECT 1 FROM portfolio.schema_migrations WHERE migration_key=$1)", PublicSnapshotMigration).Scan(&snapshotRecorded); err != nil {
+				return false, errors.New("unable to inspect snapshot migration registry")
+			}
+		}
+	}
+	var offersRecorded, offersTable bool
+	if version == SchemaVersion {
+		if err := db.QueryRow("SELECT to_regclass('portfolio.project_offers') IS NOT NULL").Scan(&offersTable); err != nil {
+			return false, errors.New("cannot inspect project offers table")
+		}
+		if migrationApplied {
+			if err := db.QueryRow("SELECT EXISTS(SELECT 1 FROM portfolio.schema_migrations WHERE migration_key=$1)", ProjectOffersMigration).Scan(&offersRecorded); err != nil {
+				return false, errors.New("cannot inspect project offers migration")
+			}
+		}
+	}
+	var longChatRecorded, chatImagesRecorded bool
+	if version == SchemaVersion && migrationApplied {
+		if err := db.QueryRow("SELECT EXISTS(SELECT 1 FROM portfolio.schema_migrations WHERE migration_key=$1)", LongChatMigration).Scan(&longChatRecorded); err != nil {
+			return false, errors.New("cannot inspect long-chat migration")
+		}
+	}
+	if version == SchemaVersion && migrationApplied {
+		if err := db.QueryRow("SELECT EXISTS(SELECT 1 FROM portfolio.schema_migrations WHERE migration_key=$1)", ChatImagesMigration).Scan(&chatImagesRecorded); err != nil {
+			return false, errors.New("cannot inspect chat-images migration")
+		}
+	}
+	shapeReady := false
+	if version == SchemaVersion {
+		shapeReady, err = SchemaShapeReady(db)
+		if err != nil {
+			return false, err
+		}
 	}
 	changed := false
-	// schema.sql is idempotent and also carries forward additive migrations.
-	// When auto-setup is enabled, apply it whenever validation failed so an
-	// existing older portfolio schema upgrades before the version check.
-	if !schemaTable || autoSetup {
+	if version < SchemaVersion || !shapeReady || !migrationApplied || !rpcPresent || !snapshotPresent || !snapshotRecorded || !offersRecorded || !offersTable || !longChatRecorded || !chatImagesRecorded {
+		if version == 0 && !autoMigrate {
+			return false, errors.New("database schema is missing; review schema.sql and enable DB_AUTO_MIGRATE only after a database backup")
+		}
+		if version > 0 && !autoMigrate {
+			// Preserve compatibility with older deployments for optional
+			// public-only migrations. Missing core Admin tables/columns block
+			// readiness instead of reporting a healthy database.
+			if !shapeReady {
+				return false, errors.New("schema requires additive alignment; enable DB_AUTO_MIGRATE after backup")
+			}
+			return false, Init(db)
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+		defer cancel()
 		if err := applySQLFile(ctx, db, filepath.Join(root, "database", "schema.sql")); err != nil {
-			return false, fmt.Errorf("apply database/schema.sql: %w", err)
+			return false, fmt.Errorf("additive schema alignment failed (transaction rolled back): %w", err)
 		}
 		changed = true
 	}
-
-	var version int
-	if err := db.QueryRowContext(ctx, "SELECT MAX(version) FROM portfolio.schema_version").Scan(&version); err != nil {
-		return changed, errors.New("database schema is incomplete")
+	if current, err := SchemaStatus(db); err != nil || current != SchemaVersion {
+		return changed, fmt.Errorf("legacy schema not compatible: expected %d", SchemaVersion)
 	}
-	if version != SchemaVersion {
-		return changed, errors.New("database schema version does not match this application")
+	if changed {
+		shapeReady, err = SchemaShapeReady(db)
+		if err != nil || !shapeReady {
+			return changed, errors.New("required schema columns are still missing after alignment")
+		}
+		if migrationApplied, err = HasPublicProjectMigration(db); err != nil || !migrationApplied {
+			return changed, errors.New("public project migration record is still missing")
+		}
+		if err := db.QueryRow("SELECT to_regprocedure('public.jpano_public_snapshot()') IS NOT NULL").Scan(&snapshotPresent); err != nil || !snapshotPresent {
+			return changed, errors.New("public snapshot RPC is still missing")
+		}
 	}
-
 	var seeded bool
-	if err := db.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM portfolio.personal_information WHERE id=1)").Scan(&seeded); err != nil {
-		return changed, errors.New("unable to inspect initial portfolio data")
+	if err := db.QueryRow("SELECT EXISTS(SELECT 1 FROM portfolio.personal_information WHERE id=1)").Scan(&seeded); err != nil {
+		return changed, errors.New("cannot validate portfolio singleton")
 	}
 	if !seeded {
-		if err := applySQLFile(ctx, db, filepath.Join(root, "database", "initial_data.sql")); err != nil {
-			return changed, fmt.Errorf("apply database/initial_data.sql: %w", err)
-		}
-		changed = true
+		// Never seed sample or private portfolio content as part of schema
+		// alignment. A schema can exist while content is intentionally empty.
+		return changed, errors.New("portfolio information record is missing; schema was checked but no portfolio data was generated")
 	}
 	if err := Init(db); err != nil {
 		return changed, err
@@ -126,8 +283,8 @@ func Ensure(db *DB, root string, autoSetup bool) (bool, error) {
 }
 
 // Align reapplies the idempotent schema definition, validates the expected
-// schema version and singleton Information row, then clears only expired
-// authentication/session records. It never drops portfolio content.
+// schema version and singleton Information row. It never adds or deletes
+// portfolio content, chat history or authentication/session records.
 func Align(db *DB, root string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
@@ -148,7 +305,8 @@ func Align(db *DB, root string) error {
 	if !singletonOK {
 		return errors.New("portfolio.personal_information row 1 must contain one JSON object")
 	}
-	CleanupExpiredAccess(db)
+	// Alignment changes schema objects only; expired sessions and messages are
+	// NOT deleted in this operation. Scheduled retention cleanup is separate.
 	return Init(db)
 }
 
@@ -169,6 +327,11 @@ func applySQLFile(ctx context.Context, db *DB, path string) error {
 	}
 	defer conn.ExecContext(context.Background(), "SET statement_timeout = 12000")
 	if _, err = conn.ExecContext(ctx, string(data)); err != nil {
+		// schema.sql uses BEGIN/COMMIT. Explicitly roll back a failed
+		// transaction so this pooled connection is not left aborted.
+		rollbackCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		_, _ = conn.ExecContext(rollbackCtx, "ROLLBACK")
+		cancel()
 		return err
 	}
 	return nil
