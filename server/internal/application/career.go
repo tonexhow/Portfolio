@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -35,7 +36,7 @@ func validCareerType(v string) bool {
 }
 
 func (a *app) publicCareerProfiles(w http.ResponseWriter, r *http.Request) {
-	rows, err := a.db.Query(`SELECT id,document_type,title,description,storage_url,file_name,file_size,visible,display_order,updated_at FROM career_profiles WHERE visible=1 ORDER BY display_order,updated_at DESC,id DESC`)
+	rows, err := a.db.Query(`SELECT id,document_type,title,description,storage_url,file_name,file_size,visible <> 0 AS visible,display_order,updated_at FROM career_profiles WHERE visible=1 ORDER BY display_order,updated_at DESC,id DESC`)
 	if err != nil {
 		writeError(w, http.StatusServiceUnavailable, "Career Profile is temporarily unavailable.")
 		return
@@ -54,7 +55,7 @@ func (a *app) publicCareerProfiles(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *app) adminCareerProfiles(w http.ResponseWriter, r *http.Request) {
-	rows, err := a.db.Query(`SELECT id,document_type,title,description,storage_path,storage_url,file_name,file_size,visible,display_order,updated_at FROM career_profiles ORDER BY display_order,updated_at DESC,id DESC`)
+	rows, err := a.db.Query(`SELECT id,document_type,title,description,storage_path,storage_url,file_name,file_size,visible <> 0 AS visible,display_order,updated_at FROM career_profiles ORDER BY display_order,updated_at DESC,id DESC`)
 	if err != nil {
 		writeError(w, 500, "Unable to load Career Profile documents.")
 		return
@@ -134,12 +135,14 @@ func (a *app) adminAddCareerProfile(w http.ResponseWriter, r *http.Request) {
 	}
 	url, err := a.mediaStore.Upload(r.Context(), objectPath, "application/pdf", data)
 	if err != nil {
+		log.Printf("career profile create: storage upload failed: %v", err)
 		writeError(w, 502, "Unable to upload the PDF to Supabase Storage.")
 		return
 	}
 	var id int64
-	err = a.db.QueryRow(`INSERT INTO career_profiles(document_type,title,description,storage_path,storage_url,file_name,file_size,visible,display_order) VALUES(?,?,?,?,?,?,?,?,?) RETURNING id`, x.DocumentType, x.Title, x.Description, objectPath, url, fileName, len(data), x.Visible, x.DisplayOrder).Scan(&id)
+	err = a.db.QueryRow(`INSERT INTO career_profiles(document_type,title,description,storage_path,storage_url,file_name,file_size,visible,display_order) VALUES(?,?,?,?,?,?,?,?,?) RETURNING id`, x.DocumentType, x.Title, x.Description, objectPath, url, fileName, len(data), boolInt(x.Visible), x.DisplayOrder).Scan(&id)
 	if err != nil {
+		log.Printf("career profile create: database insert failed: %v", err)
 		_ = a.mediaStore.Delete(r.Context(), objectPath)
 		writeError(w, 500, "Unable to save the Career Profile document.")
 		return
@@ -181,14 +184,16 @@ func (a *app) adminUpdateCareerProfile(w http.ResponseWriter, r *http.Request) {
 		}
 		newURL, err = a.mediaStore.Upload(r.Context(), newPath, "application/pdf", data)
 		if err != nil {
+			log.Printf("career profile update: replacement storage upload failed: %v", err)
 			writeError(w, 502, "Unable to upload the replacement PDF.")
 			return
 		}
 		newName = fileName
 		newSize = int64(len(data))
 	}
-	_, err = a.db.Exec(`UPDATE career_profiles SET document_type=?,title=?,description=?,storage_path=?,storage_url=?,file_name=?,file_size=?,visible=?,display_order=?,updated_at=clock_timestamp() WHERE id=?`, x.DocumentType, x.Title, x.Description, newPath, newURL, newName, newSize, x.Visible, x.DisplayOrder, id)
+	_, err = a.db.Exec(`UPDATE career_profiles SET document_type=?,title=?,description=?,storage_path=?,storage_url=?,file_name=?,file_size=?,visible=?,display_order=?,updated_at=clock_timestamp() WHERE id=?`, x.DocumentType, x.Title, x.Description, newPath, newURL, newName, newSize, boolInt(x.Visible), x.DisplayOrder, id)
 	if err != nil {
+		log.Printf("career profile update: database update failed: %v", err)
 		if newPath != oldPath && a.mediaStore != nil {
 			_ = a.mediaStore.Delete(r.Context(), newPath)
 		}
